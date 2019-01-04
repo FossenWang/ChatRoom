@@ -15,7 +15,14 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
+from django.http import JsonResponse
+
+
+def home(request):
+    return JsonResponse('home', safe=False)
+
 
 urlpatterns = [
+    path('', home, name='home'),
     path('admin/', admin.site.urls),
 ]
