@@ -22,6 +22,16 @@ class ChatTestCase(TestCase):
             for communicator in communicator_list:
                 receive_data = await communicator.receive_json_from()
                 self.assertDictEqual(send_data, receive_data)
+
+            self._test_rooms_api(len(communicator_list))
         finally:
             for communicator in communicator_list:
                 await communicator.disconnect()
+
+    def _test_rooms_api(self, room_count):
+        c = self.client
+        rsp = c.get('/api/chat/rooms/')
+        self.assertEqual(rsp.status_code, 200)
+        data = rsp.json()
+        self.assertEqual(set(data['chatrooms'][0]), {'room', 'count'})
+        self.assertEqual(data['chatrooms'][0]['count'], room_count)
