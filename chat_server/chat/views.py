@@ -8,9 +8,9 @@ def home(request):
 
 def chatroom_list(request):
     chatrooms = []
-    for room_name in ChatRoom.rooms:
+    for room in ChatRoom.rooms.values():
         chatrooms.append({
-            'room': room_name,
-            'count': len(ChatRoom.rooms[room_name]['channels'])
+            'room': room.room_name,
+            'count': room.get_online_number()
         })
     return JsonResponse({'chatrooms': chatrooms})
