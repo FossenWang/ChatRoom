@@ -1,7 +1,7 @@
 from django.test import TestCase
 from channels.testing import WebsocketCommunicator
 
-from tools import async_to_sync_function
+from utils import async_to_sync_function
 from chat_server.routing import application
 
 
@@ -11,7 +11,7 @@ class ChatTestCase(TestCase):
         try:
             communicator_list = []
             for _ in range(5):
-                communicator = WebsocketCommunicator(application, "ws/chat/test/")
+                communicator = WebsocketCommunicator(application, "ws/chat/room/1/")
                 connected, _ = await communicator.connect()
                 assert connected
                 communicator_list.append(communicator)
@@ -27,11 +27,12 @@ class ChatTestCase(TestCase):
         finally:
             for communicator in communicator_list:
                 await communicator.disconnect()
+        self._test_rooms_api(0)
 
-    def _test_rooms_api(self, room_count):
+    def _test_rooms_api(self, online_number):
         c = self.client
         rsp = c.get('/api/chat/rooms/')
         self.assertEqual(rsp.status_code, 200)
         data = rsp.json()
-        self.assertEqual(set(data['chatrooms'][0]), {'room', 'count'})
-        self.assertEqual(data['chatrooms'][0]['count'], room_count)
+        self.assertEqual(set(data['rooms'][0]), {'id', 'name', 'onlineNumber'})
+        self.assertEqual(data['rooms'][0]['onlineNumber'], online_number)

@@ -1,100 +1,124 @@
+from django.core.exceptions import ObjectDoesNotExist
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
 from channels.layers import get_channel_layer
+from channels.db import database_sync_to_async
+
+from .models import Room
 
 
-class ChatRoom:
-    rooms = {}
-    max_rooms = 10
-    channel_layer = get_channel_layer()
+class RoomManager:
+    def __init__(self):
+        # rooms = {
+        #     'name': '',
+        #     'max_number': 10,
+        #     'user_channels': {channel_name: user}
+        # }
+        self.active_rooms = {}
+        self.channel_layer = get_channel_layer()
 
-    def __new__(cls, room_name):
-        if len(cls.rooms) >= cls.max_rooms:
-            raise PermissionError(
-                'The number of rooms has reached its maximum')
-        room = super().__new__(cls)
-        cls.rooms[room_name] = room
-        return room
+    def get_room_group_name(self, room_id):
+        return f'chat_room{room_id}'
 
-    def __init__(self, room_name):
-        self.room_name = room_name
-        self.room_group_name = f'chat_{self.room_name}'
-        self.user_channel = {}
+    async def get_room(self, room_id):
+        if room_id in self.active_rooms:
+            return self.active_rooms[room_id]
 
-    @classmethod
-    def get_room(cls, room_name):
-        if room_name in cls.rooms:
-            return cls.rooms[room_name]
-        return None
+        room_object = await self.get_room_from_db(room_id)
 
-    async def join_room(self, consumer):
+        if room_id not in self.active_rooms:
+            # 异步获取room期间，其他协程可能已更新self.active_rooms
+            self.active_rooms[room_id] = {
+                'name': room_object.name,
+                'max_number': room_object.max_number,
+                'user_channels': {},
+            }
+        return self.active_rooms[room_id]
+
+    @database_sync_to_async
+    def get_room_from_db(self, room_id):
+        room_object = Room.objects.get(id=room_id)
+        return room_object
+
+    async def join_room(self, room_id, channel_name, user):
         # Join room group
-        self.user_channel[consumer.channel_name] = consumer.user
+        room = await self.get_room(room_id)
+        room['user_channels'][channel_name] = user
         await self.channel_layer.group_add(
-            self.room_group_name,
-            consumer.channel_name
+            self.get_room_group_name(room_id),
+            channel_name,
         )
 
-    async def leave_room(self, consumer):
+    async def leave_room(self, room_id, channel_name):
         # Leave room group
-        self.user_channel[consumer.channel_name] = consumer.user
+        room = await self.get_room(room_id)
+        del room['user_channels'][channel_name]
+        if not room['user_channels']:
+            del self.active_rooms[room_id]
         await self.channel_layer.group_discard(
-            self.room_group_name,
-            consumer.channel_name
+            self.get_room_group_name(room_id),
+            channel_name,
         )
 
-    async def room_send(self, consumer, event):
+    async def room_send(self, room_id, event):
         await self.channel_layer.group_send(
-            self.room_group_name,
+            self.get_room_group_name(room_id),
             event
         )
 
-    def get_room_group(self):
-        return self.channel_layer.groups.get(self.room_group_name, {})
+    def get_online_number(self, room_id):
+        self._clean_active_room(room_id)
+        room = self.active_rooms.get(room_id)
+        if room:
+            return len(room['user_channels'])
+        return 0
 
-    def get_online_number(self):
-        self._clean_room()
-        return len(self.get_room_group())
+    def get_online_users(self, room_id):
+        self._clean_active_room(room_id)
+        return self.active_rooms[room_id]['user_channels'].values()
 
-    def get_online_users(self):
-        self._clean_room()
-        return self.user_channel.values()
+    def _clean_active_room(self, room_id):
+        room = self.active_rooms.get(room_id)
+        if room:
+            # 不同 backend 的 channel_layer 的 groups 获取方式不同
+            # 此处仅为 InMemoryChannelLayer 的用法
+            room_group_name = self.get_room_group_name(room_id)
+            room_group = self.channel_layer.groups.get(room_group_name, {})
 
-    @classmethod
-    def _clean_room(cls):
-        for room in cls.rooms.values():
-            for channel_name in room.user_channel:
-                if channel_name not in room.get_room_group():
-                    del room.user_channel
+            for channel_name in list(room['user_channels'].keys()):
+                if channel_name not in room_group:
+                    del room['user_channels'][channel_name]
+            if not room['user_channels']:
+                del self.active_rooms[room_id]
 
-ChatRoom('test')
-rooms = [ChatRoom(f'room{i}') for i in range(9)]
-
-
-def get_room(room_name):
-    return ChatRoom.get_room(room_name)
+room_manager = RoomManager()
 
 
 class ChatConsumer(AsyncJsonWebsocketConsumer):
     async def connect(self):
-        self.room_name = self.scope['url_route']['kwargs']['room_name']
-        self.room = get_room(self.room_name)
-        self.user = self.scope['user']
-        if not self.room:
+        self.room_id = self.scope['url_route']['kwargs']['room_id']
+        user = self.scope['user']
+        self.user = {
+            'id': user.id,
+            'is_anonymous': user.is_anonymous,
+            'username': self.channel_name.replace('specific..inmemory!', '', 1),
+        }
+        try:
+            await room_manager.join_room(self.room_id, self.channel_name, self.user)
+            await self.accept()
+        except ObjectDoesNotExist:
             await self.close(3000)
-            return
-        await self.accept()
-        await self.room.join_room(self)
 
     async def disconnect(self, close_code):
-        if self.room:
-            await self.room.leave_room(self)
+        if close_code == 3000:
+            return
+        await room_manager.leave_room(self.room_id, self.channel_name)
 
     # Receive message from WebSocket
     async def receive_json(self, data):
         message = data['message']
 
         # Send message to room group
-        await self.room.room_send(self, {
+        await room_manager.room_send(self.room_id, {
             'type': 'chat_message',
             'message': message})
 

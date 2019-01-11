@@ -1,5 +1,7 @@
 from django.http import JsonResponse
-from .consumers import ChatRoom
+
+from .consumers import room_manager
+from .models import Room
 
 
 def home(request):
@@ -7,10 +9,12 @@ def home(request):
 
 
 def chatroom_list(request):
-    chatrooms = []
-    for room in ChatRoom.rooms.values():
-        chatrooms.append({
-            'room': room.room_name,
-            'count': room.get_online_number()
+    room_list = Room.objects.values()
+    rooms = []
+    for room in room_list:
+        rooms.append({
+            'id': room['id'],
+            'name': room['name'],
+            'onlineNumber': room_manager.get_online_number(room['id'])
         })
-    return JsonResponse({'chatrooms': chatrooms})
+    return JsonResponse({'rooms': rooms})
