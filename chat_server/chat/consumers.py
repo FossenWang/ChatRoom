@@ -2,8 +2,13 @@ from django.core.exceptions import ObjectDoesNotExist
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
 from channels.layers import get_channel_layer
 from channels.db import database_sync_to_async
+from channels.exceptions import StopConsumer
 
 from .models import Room
+
+
+class RoomFull(Exception):
+    pass
 
 
 class RoomManager:
@@ -42,6 +47,10 @@ class RoomManager:
     async def join_room(self, room_id, channel_name, user):
         # Join room group
         room = await self.get_room(room_id)
+
+        if len(room['user_channels']) >= room['max_number']:
+            raise RoomFull('Room is full')
+
         room['user_channels'][channel_name] = user
         await self.channel_layer.group_add(
             self.get_room_group_name(room_id),
@@ -94,6 +103,10 @@ room_manager = RoomManager()
 
 
 class ChatConsumer(AsyncJsonWebsocketConsumer):
+    class codes:
+        ROOM_NOT_EXIST = 3000
+        ROOM_FULL = 3001
+
     async def connect(self):
         self.room_id = self.scope['url_route']['kwargs']['room_id']
         user = self.scope['user']
@@ -106,12 +119,19 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
             await room_manager.join_room(self.room_id, self.channel_name, self.user)
             await self.accept()
         except ObjectDoesNotExist:
-            await self.close(3000)
+            await self.close(self.codes.ROOM_NOT_EXIST)
+            raise StopConsumer()
+        except RoomFull:
+            await self.close(self.codes.ROOM_FULL)
+            raise StopConsumer()
 
     async def disconnect(self, close_code):
-        if close_code == 3000:
+        if close_code == self.codes.ROOM_NOT_EXIST:
             return
-        await room_manager.leave_room(self.room_id, self.channel_name)
+        try:
+            await room_manager.leave_room(self.room_id, self.channel_name)
+        except ObjectDoesNotExist:
+            pass
 
     # Receive message from WebSocket
     async def receive_json(self, data):

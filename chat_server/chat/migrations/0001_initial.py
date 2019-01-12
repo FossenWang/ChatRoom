@@ -7,7 +7,7 @@ def initial_data(apps, schema_editor):
     from django.contrib.auth.models import User
     from chat.models import Room
     User.objects.create_superuser('admin', None, 'admin123')
-    Room.objects.create(name='test')
+    Room.objects.create(name='test', max_number=10)
     for i in range(1, 6):
         User.objects.create_user(f'user{i}')
         Room.objects.create(name=f'room{i}', max_number=(10 + i))
