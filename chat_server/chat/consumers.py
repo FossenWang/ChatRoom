@@ -1,3 +1,5 @@
+import re
+
 from django.core.exceptions import ObjectDoesNotExist
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
 from channels.layers import get_channel_layer
@@ -107,17 +109,32 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
         ROOM_NOT_EXIST = 3000
         ROOM_FULL = 3001
 
+    class msg_types:
+        ERROR = 0
+        MESSAGE = 1
+        CURRENT_USER = 2
+        JOIN_ROOM = 3
+        LEAVE_ROOM = 4
+
     async def connect(self):
         self.room_id = self.scope['url_route']['kwargs']['room_id']
         user = self.scope['user']
         self.user = {
             'id': user.id,
             'is_anonymous': user.is_anonymous,
-            'username': self.channel_name.replace('specific..inmemory!', '', 1),
+            'username': user.username,
         }
+        if user.is_anonymous:
+            self.user['username'] = self.channel_name.replace('specific..inmemory!', '', 1)
         try:
             await room_manager.join_room(self.room_id, self.channel_name, self.user)
             await self.accept()
+            await self.send_current_user()
+            await room_manager.room_send(self.room_id, {
+                'type': 'join_room_msg',
+                'user': self.user,
+                'onlineNumber': room_manager.get_online_number(self.room_id),
+            })
         except ObjectDoesNotExist:
             await self.close(self.codes.ROOM_NOT_EXIST)
             raise StopConsumer()
@@ -130,21 +147,61 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
             return
         try:
             await room_manager.leave_room(self.room_id, self.channel_name)
+            await room_manager.room_send(self.room_id, {
+                'type': 'leave_room_msg',
+                'user': self.user,
+                'onlineNumber': room_manager.get_online_number(self.room_id),
+            })
         except ObjectDoesNotExist:
             pass
 
     # Receive message from WebSocket
     async def receive_json(self, data):
-        message = data['message']
+        message = data.get('message')
+        try:
+            self.validate_message(message)
+        except Exception as e:
+            # Wrong message will only be send to sender,
+            # and won't be send to others
+            await self.send_json({
+                'msg_type': self.msg_types.ERROR,
+                'message': message,
+                'error': str(e)})
+            return
 
         # Send message to room group
         await room_manager.room_send(self.room_id, {
             'type': 'chat_message',
-            'message': message})
+            'message': message,
+            'user': self.user})
+
+    def validate_message(self, message):
+        assert message, 'Message is empty'
+        assert not re.match(r'^[\s\f\r\t\n]*$', message), 'Message is empty'
+        assert len(message) <= 500, "Message's length can't be larger than 500"
 
     # Receive message from room group
     async def chat_message(self, event):
-        message = event['message']
-
         # Send message to WebSocket
-        await self.send_json({'message': message})
+        await self.send_json({
+            'msg_type': self.msg_types.MESSAGE,
+            'message': event['message'],
+            'user': event['user']})
+
+    async def send_current_user(self):
+        # Send current user info to WebSocket
+        await self.send_json({
+            'msg_type': self.msg_types.CURRENT_USER,
+            'current_user': self.user})
+
+    async def join_room_msg(self, event):
+        await self.send_json({
+            'msg_type': self.msg_types.JOIN_ROOM,
+            'user': event['user'],
+            'onlineNumber': event['onlineNumber']})
+
+    async def leave_room_msg(self, event):
+        await self.send_json({
+            'msg_type': self.msg_types.LEAVE_ROOM,
+            'user': event['user'],
+            'onlineNumber': event['onlineNumber']})
