@@ -18,7 +18,7 @@ class RoomManager:
         # rooms = {
         #     'name': '',
         #     'max_number': 10,
-        #     'user_channels': {channel_name: user}
+        #     'online_users': {channel_name: user}
         # }
         self.active_rooms = {}
         self.channel_layer = get_channel_layer()
@@ -37,7 +37,7 @@ class RoomManager:
             self.active_rooms[room_id] = {
                 'name': room_object.name,
                 'max_number': room_object.max_number,
-                'user_channels': {},
+                'online_users': {},
             }
         return self.active_rooms[room_id]
 
@@ -50,10 +50,10 @@ class RoomManager:
         # Join room group
         room = await self.get_room(room_id)
 
-        if len(room['user_channels']) >= room['max_number']:
+        if len(room['online_users']) >= room['max_number']:
             raise RoomFull('Room is full')
 
-        room['user_channels'][channel_name] = user
+        room['online_users'][channel_name] = user
         await self.channel_layer.group_add(
             self.get_room_group_name(room_id),
             channel_name,
@@ -62,8 +62,8 @@ class RoomManager:
     async def leave_room(self, room_id, channel_name):
         # Leave room group
         room = await self.get_room(room_id)
-        del room['user_channels'][channel_name]
-        if not room['user_channels']:
+        del room['online_users'][channel_name]
+        if not room['online_users']:
             del self.active_rooms[room_id]
         await self.channel_layer.group_discard(
             self.get_room_group_name(room_id),
@@ -80,12 +80,12 @@ class RoomManager:
         self._clean_active_room(room_id)
         room = self.active_rooms.get(room_id)
         if room:
-            return len(room['user_channels'])
+            return len(room['online_users'])
         return 0
 
     def get_online_users(self, room_id):
         self._clean_active_room(room_id)
-        return self.active_rooms[room_id]['user_channels'].values()
+        return self.active_rooms[room_id]['online_users'].values()
 
     def _clean_active_room(self, room_id):
         room = self.active_rooms.get(room_id)
@@ -95,10 +95,10 @@ class RoomManager:
             room_group_name = self.get_room_group_name(room_id)
             room_group = self.channel_layer.groups.get(room_group_name, {})
 
-            for channel_name in list(room['user_channels'].keys()):
+            for channel_name in list(room['online_users'].keys()):
                 if channel_name not in room_group:
-                    del room['user_channels'][channel_name]
-            if not room['user_channels']:
+                    del room['online_users'][channel_name]
+            if not room['online_users']:
                 del self.active_rooms[room_id]
 
 room_manager = RoomManager()
@@ -124,8 +124,9 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
             'is_anonymous': user.is_anonymous,
             'username': user.username,
         }
+        # set id to distinguish anonymous users
         if user.is_anonymous:
-            self.user['username'] = self.channel_name.replace('specific..inmemory!', '', 1)
+            self.user['id'] = self.channel_name.replace('specific..inmemory!', '', 1)
         try:
             await room_manager.join_room(self.room_id, self.channel_name, self.user)
             await self.accept()

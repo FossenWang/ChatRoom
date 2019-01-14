@@ -20,8 +20,8 @@ class ChatTestCase(TestCase):
             self.assertEqual(receive_data['msg_type'], ChatConsumer.msg_types.CURRENT_USER)
             user = receive_data['current_user']
             communicator.user = user
-            self.assertTrue(user['username'])
-            self.assertEqual(user['id'], None)
+            self.assertTrue(user['id'])
+            self.assertEqual(user['username'], '')
             self.assertEqual(user['is_anonymous'], True)
 
         # test send & receive message
