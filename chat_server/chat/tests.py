@@ -103,5 +103,5 @@ class ChatTestCase(TestCase):
         rsp = c.get('/api/chat/rooms/')
         self.assertEqual(rsp.status_code, 200)
         data = rsp.json()
-        self.assertEqual(set(data['rooms'][0]), {'id', 'name', 'onlineNumber'})
+        self.assertEqual(set(data['rooms'][0]), {'id', 'name', 'onlineNumber', 'maxNumber'})
         self.assertEqual(data['rooms'][0]['onlineNumber'], online_number)
