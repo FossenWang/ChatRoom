@@ -35,6 +35,7 @@ class RoomManager:
         if room_id not in self.active_rooms:
             # 异步获取room期间，其他协程可能已更新self.active_rooms
             self.active_rooms[room_id] = {
+                'id': room_object.id,
                 'name': room_object.name,
                 'max_number': room_object.max_number,
                 'online_users': {},
@@ -112,7 +113,7 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
     class msg_types:
         ERROR = 0
         MESSAGE = 1
-        CURRENT_USER = 2
+        USER_ROOM_INFO = 2
         JOIN_ROOM = 3
         LEAVE_ROOM = 4
 
@@ -130,7 +131,7 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
         try:
             await room_manager.join_room(self.room_id, self.channel_name, self.user)
             await self.accept()
-            await self.send_current_user()
+            await self.send_user_room_info()
             await room_manager.room_send(self.room_id, {
                 'type': 'join_room_msg',
                 'user': self.user,
@@ -161,6 +162,7 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
         message = data.get('message')
         try:
             self.validate_message(message)
+            message = str(message)
         except Exception as e:
             # Wrong message will only be send to sender,
             # and won't be send to others
@@ -178,6 +180,7 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
 
     def validate_message(self, message):
         assert message, 'Message is empty'
+        message = str(message)
         assert not re.match(r'^[\s\f\r\t\n]*$', message), 'Message is empty'
         assert len(message) <= 500, "Message's length can't be larger than 500"
 
@@ -189,11 +192,19 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
             'message': event['message'],
             'user': event['user']})
 
-    async def send_current_user(self):
+    async def send_user_room_info(self):
         # Send current user info to WebSocket
+        room = await room_manager.get_room(self.room_id)
         await self.send_json({
-            'msg_type': self.msg_types.CURRENT_USER,
-            'current_user': self.user})
+            'msg_type': self.msg_types.USER_ROOM_INFO,
+            'user': self.user,
+            'room': {
+                'id': room['id'],
+                'name': room['name'],
+                'maxNumber': room['max_number'],
+                'onlineNumber': len(room['online_users']),
+            }
+        })
 
     async def join_room_msg(self, event):
         await self.send_json({

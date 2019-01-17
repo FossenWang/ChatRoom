@@ -1,9 +1,20 @@
-import React, { Component } from 'react'
+import React, { Component, Fragment } from 'react'
+
+import { Link } from "react-router-dom"
+
 import List from '@material-ui/core/List'
 import ListItem from '@material-ui/core/ListItem'
 import ListItemText from '@material-ui/core/ListItemText'
-import { Link } from "react-router-dom"
+import { withStyles } from '@material-ui/core/styles'
 
+import Topbar from './topbar'
+
+
+const roomListStyle = {
+  item: {
+    borderBottom: "1px solid #f4f5f7",
+  }
+}
 
 class RoomList extends Component {
   state = { rooms: [] }
@@ -21,18 +32,22 @@ class RoomList extends Component {
   render() {
     let room_list = this.state.rooms.map((room) => {
       return (
-        <ListItem key={room.id} button component={Link} to={`/chat/room/${room.id}`}>
+        <ListItem key={room.id} button className={this.props.classes.item}
+          component={Link} to={`/room/${room.id}`}>
           <ListItemText primary={room.name} secondary={`${room.onlineNumber}人在线`} />
         </ListItem>
       )
     })
     return (
-      <List>
-        {room_list}
-      </List>
+      <Fragment>
+        <Topbar>Chat Room</Topbar>
+        <List>
+          {room_list}
+        </List>
+      </Fragment>
     )
   }
 }
 
 
-export default RoomList
+export default withStyles(roomListStyle)(RoomList)

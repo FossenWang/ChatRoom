@@ -3,10 +3,9 @@ import React, { Component, Fragment } from 'react'
 import { BrowserRouter as Router, Switch, Route } from "react-router-dom"
 
 import { withStyles } from '@material-ui/core/styles'
-import AppBar from '@material-ui/core/AppBar'
-import Toolbar from '@material-ui/core/Toolbar'
 
 import RoomList from './room_list'
+import Room from './room'
 import NoMatch from './no_match'
 
 
@@ -30,12 +29,9 @@ class ChatApp extends Component {
     return (
       <Router>
         <Fragment>
-          <AppBar position="fixed" color="default">
-            <Toolbar>Chat Room</Toolbar>
-          </AppBar>
-          <div className={this.props.classes.placeholder}></div>
           <Switch>
             <Route exact path='/' component={RoomList} />
+            <Route exact path='/room/:id(\d+)' component={Room} />
             <Route component={NoMatch}/>
           </Switch>
         </Fragment>

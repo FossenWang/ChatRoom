@@ -15,31 +15,24 @@ class ChatTestCase(TestCase):
             connected, _ = await communicator.connect()
             assert connected
             communicator_list.append(communicator)
-            # test current user info
+            # test user & room info
             receive_data = await communicator.receive_json_from()
-            self.assertEqual(receive_data['msg_type'], ChatConsumer.msg_types.CURRENT_USER)
-            user = receive_data['current_user']
+            self.assertEqual(receive_data['msg_type'], ChatConsumer.msg_types.USER_ROOM_INFO)
+            user = receive_data['user']
             communicator.user = user
             self.assertTrue(user['id'])
             self.assertEqual(user['username'], '')
             self.assertEqual(user['is_anonymous'], True)
+            self.assertEqual(set(receive_data['room']), {'id', 'name', 'onlineNumber', 'maxNumber'})
 
-        # test send & receive message
-        send_data = {'message': 'test'}
-        await communicator_list[0].send_json_to(send_data)
-        for communicator in communicator_list:
-            receive_data = None
-            while not receive_data:
-                receive_data = await communicator.receive_json_from()
-                if receive_data['msg_type'] != ChatConsumer.msg_types.MESSAGE:
-                    receive_data = None
-            self.assertEqual(send_data['message'], receive_data['message'])
-            self.assertDictEqual(receive_data['user'], communicator_list[0].user)
+        await self.assertMessageNoError(communicator_list, 'test')
+        await self.assertMessageNoError(communicator_list, 123)
+        await self.assertMessageNoError(communicator_list, True)
 
         await self.assertMessageError(communicator_list[0], None)
         await self.assertMessageError(communicator_list[0], '   ')
         await self.assertMessageError(communicator_list[0], '\n\t')
-        await self.assertMessageError(communicator_list[0], '6' * 501)
+        await self.assertMessageError(communicator_list[0], 'x' * 501)
         self._test_online_number(len(communicator_list))
 
         # test join % leave room msg
@@ -47,8 +40,8 @@ class ChatTestCase(TestCase):
         connected, _ = await new_communicator.connect()
         assert connected
         receive_data = await new_communicator.receive_json_from()
-        self.assertEqual(receive_data['msg_type'], ChatConsumer.msg_types.CURRENT_USER)
-        new_communicator.user = receive_data['current_user']
+        self.assertEqual(receive_data['msg_type'], ChatConsumer.msg_types.USER_ROOM_INFO)
+        new_communicator.user = receive_data['user']
         # receive join msg
         for communicator in communicator_list:
             receive_data = await communicator.receive_json_from()
@@ -89,6 +82,19 @@ class ChatTestCase(TestCase):
 
         for communicator in communicator_list:
             await communicator.disconnect()
+
+    async def assertMessageNoError(self, communicator_list, message):
+        # test send & receive message
+        send_data = {'message': message}
+        await communicator_list[0].send_json_to(send_data)
+        for communicator in communicator_list:
+            receive_data = None
+            while not receive_data:
+                receive_data = await communicator.receive_json_from()
+                if receive_data['msg_type'] != ChatConsumer.msg_types.MESSAGE:
+                    receive_data = None
+            self.assertEqual(send_data['message'], receive_data['message'])
+            self.assertDictEqual(receive_data['user'], communicator_list[0].user)
 
     async def assertMessageError(self, communicator, message):
         send_data = {'message': message}
