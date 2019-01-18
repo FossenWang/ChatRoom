@@ -1,16 +1,26 @@
-import React, { Component } from 'react'
+import React, { Component, Fragment, createRef } from 'react'
 
 // import { Link } from "react-router-dom"
 
+import List from '@material-ui/core/List'
+import ListItem from '@material-ui/core/ListItem'
+import ListItemText from '@material-ui/core/ListItemText'
+// import { withStyles } from '@material-ui/core/styles'
+
 import Topbar from './topbar'
+import { Toast } from './utils/components'
 
 
 class Room extends Component {
   state = {
-    room: {}, user: {}, messages: {}
+    room: {}, user: {}, messages: []
   }
+  toastRef = createRef()
   componentDidMount() {
     this.connectRoom()
+  }
+  componentWillUnmount() {
+    this.disconnectRoom()
   }
   connectRoom = async () => {
     let url_room_id = this.props.match.params.id
@@ -24,28 +34,57 @@ class Room extends Component {
       }))
     }
     this.chatSocket = chatSocket
+    this.disconnectRoom = ()=>{
+      chatSocket.close()
+    }
   }
+  disconnectRoom() {}
   msgHandles = {
-    0: (data) => {
-      console.log(data)
-    },
-    1: (data) => {
-      console.log(data)
-    },
-    2: (data) => {
-      console.log(data)
-    },
-    3: (data) => {
-      console.log(data)
-    },
-    4: (data) => {
-      console.log(data)
-    },
     ERROR: 0,
+    0: (data) => {
+      let msg = `好像出了点问题: ${data.error}`
+      this.toastRef.current.open(msg)
+    },
     MESSAGE: 1,
+    1: (data) => {
+      if (data.message === undefined || data.user === undefined){
+        return
+      }
+      this.setState((state) => {
+        state.messages.push(data)
+        return {
+          messages: state.messages
+        }
+      })
+    },
     USER_ROOM_INFO: 2,
+    2: (data) => {
+      this.setState({room: data.room, user: data.user})
+    },
     JOIN_ROOM: 3,
+    3: (data) => {
+      let user = data.user
+      if (user.id === this.state.user.id) { return }
+      let username = this.getUsername(user)
+      this.setState((state) => {
+        state.room.onlineNumber = data.onlineNumber
+        return {room: state.room}
+      })
+      let msg = `${username} 进入房间`
+      this.toastRef.current.open(msg)
+    },
     LEAVE_ROOM: 4,
+    4: (data) => {
+      let user = data.user
+      if (user.id === this.state.user.id) { return }
+      let username = this.getUsername(user)
+      this.setState((state) => {
+        state.room.onlineNumber = data.onlineNumber
+        return {room: state.room}
+      })
+      let msg = `${username} 离开房间`
+      this.toastRef.current.open(msg)
+    },
   }
   close_codes = {
     ROOM_NOT_EXIST: 3000,
@@ -61,9 +100,31 @@ class Room extends Component {
   socketClose = (event) => {
     console.log(event)
   }
+  getUsername(user) {
+    let username = user.username
+    if (user.isAnonymous) {
+      username = `游客(${user.id})`
+    }
+    return username
+  }
   render() {
+    let { room, messages } = this.state
+    let messageList = messages.map((data, index) => {
+      return (
+        <ListItem key={index} button>
+          <div>
+            <ListItemText>{data.message}</ListItemText>
+            <ListItemText>{JSON.stringify(data.user)}</ListItemText>
+          </div>
+        </ListItem>
+      )
+    })
     return (
-      <Topbar>{this.state.room.name}</Topbar>
+      <Fragment>
+        <Topbar>{`${room.name}   ${room.onlineNumber}/${room.maxNumber}`}</Topbar>
+        <List>{messageList}</List>
+        <Toast ref={this.toastRef}></Toast>
+      </Fragment>
     )
   }
 }

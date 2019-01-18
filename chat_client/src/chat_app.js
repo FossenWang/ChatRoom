@@ -6,7 +6,7 @@ import { withStyles } from '@material-ui/core/styles'
 
 import RoomList from './room_list'
 import Room from './room'
-import NoMatch from './no_match'
+import { NoMatch } from './utils/components'
 
 
 const appStyle = {

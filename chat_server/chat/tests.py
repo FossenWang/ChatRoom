@@ -22,7 +22,7 @@ class ChatTestCase(TestCase):
             communicator.user = user
             self.assertTrue(user['id'])
             self.assertEqual(user['username'], '')
-            self.assertEqual(user['is_anonymous'], True)
+            self.assertEqual(user['isAnonymous'], True)
             self.assertEqual(set(receive_data['room']), {'id', 'name', 'onlineNumber', 'maxNumber'})
 
         await self.assertMessageNoError(communicator_list, 'test')

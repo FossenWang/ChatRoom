@@ -122,7 +122,7 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
         user = self.scope['user']
         self.user = {
             'id': user.id,
-            'is_anonymous': user.is_anonymous,
+            'isAnonymous': user.is_anonymous,
             'username': user.username,
         }
         # set id to distinguish anonymous users
