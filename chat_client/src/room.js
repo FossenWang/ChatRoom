@@ -4,11 +4,78 @@ import React, { Component, Fragment, createRef } from 'react'
 
 import List from '@material-ui/core/List'
 import ListItem from '@material-ui/core/ListItem'
-import ListItemText from '@material-ui/core/ListItemText'
-// import { withStyles } from '@material-ui/core/styles'
+import Grid from '@material-ui/core/Grid'
+import { withStyles } from '@material-ui/core/styles'
 
 import Topbar from './topbar'
 import { Toast } from './utils/components'
+
+
+const messageStyle = {
+  name: {
+    fontSize: '0.9rem',
+    marginBottom: 8,
+  },
+  bubble: {
+    position: 'relative',
+    margin: '0 8px',
+    padding: '8px 10px',
+    borderRadius: 5,
+    background: '#f6f8fa',
+    wordBreak: 'break-word',
+    whiteSpace: 'pre-wrap',
+    width: 'fit-content',
+    // minWidth: 80,
+    // border: 'solid #f6f8fa 1px',
+  },
+  tail: {
+    position: 'absolute',
+    top: 11,
+    borderWidth: 5,
+    borderStyle: 'solid',
+    borderColor: 'transparent',
+  },
+  left: {
+    right: '100%',
+    borderRightWidth: 8,
+    borderLeftWidth: 0,
+    borderRightColor: '#f6f8fa',
+  },
+  right: {
+    left: '100%',
+    borderLeftWidth: 8,
+    borderRightWidth: 0,
+    borderLeftColor: '#f6f8fa',
+  },
+}
+
+class ChatMessage extends Component {
+  getUsername(user) {
+    let username = user.username
+    if (user.isAnonymous) {
+      username = `游客(${user.id})`
+    }
+    return username
+  }
+  render() {
+    let { user, message, isSelf, classes } = this.props
+    return (
+      <ListItem>
+        <Grid container direction='column' justify='flex-end' alignItems={isSelf ? 'flex-end' : 'flex-start'}>
+          <div className={classes.name}>
+            {this.getUsername(user)}
+          </div>
+          <div className={classes.bubble}>
+            <i className={`${classes.tail} ${isSelf ? classes.right : classes.left}`} />
+            {message}
+          </div>
+        </Grid>
+      </ListItem>
+    )
+  }
+}
+
+ChatMessage = withStyles(messageStyle)(ChatMessage)
 
 
 class Room extends Component {
@@ -33,12 +100,13 @@ class Room extends Component {
         'message': message
       }))
     }
+    chatSocket.onopen = () => { window.send('Hello!\n666\n777') }
     this.chatSocket = chatSocket
-    this.disconnectRoom = ()=>{
+    this.disconnectRoom = () => {
       chatSocket.close()
     }
   }
-  disconnectRoom() {}
+  disconnectRoom() { }
   msgHandles = {
     ERROR: 0,
     0: (data) => {
@@ -47,19 +115,17 @@ class Room extends Component {
     },
     MESSAGE: 1,
     1: (data) => {
-      if (data.message === undefined || data.user === undefined){
+      if (data.message === undefined || data.user === undefined) {
         return
       }
       this.setState((state) => {
         state.messages.push(data)
-        return {
-          messages: state.messages
-        }
-      })
+        return { messages: state.messages }
+      }, () => { window.scrollTo(0, document.documentElement.scrollHeight) })
     },
     USER_ROOM_INFO: 2,
     2: (data) => {
-      this.setState({room: data.room, user: data.user})
+      this.setState({ room: data.room, user: data.user })
     },
     JOIN_ROOM: 3,
     3: (data) => {
@@ -68,7 +134,7 @@ class Room extends Component {
       let username = this.getUsername(user)
       this.setState((state) => {
         state.room.onlineNumber = data.onlineNumber
-        return {room: state.room}
+        return { room: state.room }
       })
       let msg = `${username} 进入房间`
       this.toastRef.current.open(msg)
@@ -80,7 +146,7 @@ class Room extends Component {
       let username = this.getUsername(user)
       this.setState((state) => {
         state.room.onlineNumber = data.onlineNumber
-        return {room: state.room}
+        return { room: state.room }
       })
       let msg = `${username} 离开房间`
       this.toastRef.current.open(msg)
@@ -108,15 +174,11 @@ class Room extends Component {
     return username
   }
   render() {
-    let { room, messages } = this.state
+    let { room, messages, user } = this.state
     let messageList = messages.map((data, index) => {
       return (
-        <ListItem key={index} button>
-          <div>
-            <ListItemText>{data.message}</ListItemText>
-            <ListItemText>{JSON.stringify(data.user)}</ListItemText>
-          </div>
-        </ListItem>
+        <ChatMessage key={index} message={data.message}
+          user={data.user} isSelf={data.user.id === user.id} />
       )
     })
     return (
