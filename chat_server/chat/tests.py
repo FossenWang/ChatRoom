@@ -18,11 +18,8 @@ class ChatTestCase(TestCase):
             # test user & room info
             receive_data = await communicator.receive_json_from()
             self.assertEqual(receive_data['msg_type'], ChatConsumer.msg_types.USER_ROOM_INFO)
-            user = receive_data['user']
-            communicator.user = user
-            self.assertTrue(user['id'])
-            self.assertEqual(user['username'], '')
-            self.assertEqual(user['isAnonymous'], True)
+            communicator.user = receive_data['user']
+            self.assertEqual(set(receive_data['user']), {'id', 'username'})
             self.assertEqual(set(receive_data['room']), {'id', 'name', 'onlineNumber', 'maxNumber'})
 
         await self.assertMessageNoError(communicator_list, 'test')
@@ -93,7 +90,7 @@ class ChatTestCase(TestCase):
                 receive_data = await communicator.receive_json_from()
                 if receive_data['msg_type'] != ChatConsumer.msg_types.MESSAGE:
                     receive_data = None
-            self.assertEqual(send_data['message'], receive_data['message'])
+            self.assertEqual(str(send_data['message']), receive_data['message'])
             self.assertDictEqual(receive_data['user'], communicator_list[0].user)
 
     async def assertMessageError(self, communicator, message):

@@ -5,6 +5,7 @@ import React, { Component, Fragment, createRef } from 'react'
 import List from '@material-ui/core/List'
 import ListItem from '@material-ui/core/ListItem'
 import Grid from '@material-ui/core/Grid'
+import Button from '@material-ui/core/Button'
 import { withStyles } from '@material-ui/core/styles'
 
 import Topbar from './topbar'
@@ -13,7 +14,7 @@ import { Toast } from './utils/components'
 
 const messageStyle = {
   name: {
-    fontSize: '0.9rem',
+    fontSize: '0.5rem',
     marginBottom: 8,
   },
   bubble: {
@@ -25,8 +26,6 @@ const messageStyle = {
     wordBreak: 'break-word',
     whiteSpace: 'pre-wrap',
     width: 'fit-content',
-    // minWidth: 80,
-    // border: 'solid #f6f8fa 1px',
   },
   tail: {
     position: 'absolute',
@@ -50,20 +49,13 @@ const messageStyle = {
 }
 
 class ChatMessage extends Component {
-  getUsername(user) {
-    let username = user.username
-    if (user.isAnonymous) {
-      username = `游客(${user.id})`
-    }
-    return username
-  }
   render() {
     let { user, message, isSelf, classes } = this.props
     return (
       <ListItem>
         <Grid container direction='column' justify='flex-end' alignItems={isSelf ? 'flex-end' : 'flex-start'}>
           <div className={classes.name}>
-            {this.getUsername(user)}
+            {user.username}
           </div>
           <div className={classes.bubble}>
             <i className={`${classes.tail} ${isSelf ? classes.right : classes.left}`} />
@@ -77,6 +69,95 @@ class ChatMessage extends Component {
 
 ChatMessage = withStyles(messageStyle)(ChatMessage)
 
+const fieldStyle = {
+  form: {
+    padding: 8,
+    background: '#f5f5f5',
+    width: 'calc(100% - 16px)',
+    position: 'fixed',
+    bottom: 0,
+  },
+  text: {
+    padding: '4px 8px',
+    margin: 'auto 8px auto 0',
+    flex: 1,
+    overflow: 'hidden',
+    resize: 'none',
+    borderRadius: 4,
+    border: 'none',
+    lineHeight: '18px',
+    fontSize: '1rem',
+    fontFamily: '"Roboto", Helvetica, "Lucida Sans", "Microsoft YaHei", Georgia, Arial, Sans-serif',
+  },
+  baseButton: {
+    borderRadius: 4,
+    padding: 0,
+    minWidth: 48,
+    height: 'fit-content',
+  },
+  enabledButton: {
+    background: '#2196f3',
+    color: 'white',
+    '&:hover': {
+      background: '#1976d2',
+    }
+  }
+}
+
+class MessageField extends Component {
+  state = { value: '', rows: 1, formHeight: 42 }
+  handleChange = (event) => {
+    let textarea = event.target
+    textarea.rows = 1
+    let textRows = Math.ceil((textarea.scrollHeight - 8) / 18)
+    if (textRows > 5) { textarea.rows = 5 }
+    else { textarea.rows = textRows }
+    this.setState({ value: textarea.value, rows: textarea.rows, formHeight: textarea.clientHeight + 16 })
+  }
+  submitMessage = (event) => {
+    let value = this.textareaRef.current.value
+    if (this.validate(value)) {
+      this.props.sendMessage(value)
+      let textarea = this.textareaRef.current
+      textarea.value = ''
+      textarea.rows = 1
+      this.setState({ value: textarea.value, rows: textarea.rows, formHeight: textarea.clientHeight + 16 })
+    }
+  }
+  validate(value) {
+    let valid = value.length > 0 && value.length <= 500
+    if (!valid) { return valid }
+    valid = value.search('^[\\s\\f\\r\\t\\n]*$') < 0
+    return valid
+  }
+  textareaRef = createRef()
+  render() {
+    let { classes } = this.props
+    let { value, rows, formHeight } = this.state
+    let valueIsValid = this.validate(value)
+    let buttonProps = valueIsValid
+      ? { disabled: false, className: classes.baseButton + ' ' + classes.enabledButton }
+      : { disabled: true, className: classes.baseButton }
+    return (
+      <Fragment>
+        <div style={{ height: formHeight }}></div>
+        <form className={classes.form}>
+          <Grid container alignItems={'center'}>
+            <textarea className={classes.text} onChange={this.handleChange}
+              required name='message' rows={rows} maxLength={500} ref={this.textareaRef} />
+            <Button onClick={this.submitMessage} {...buttonProps}>确认</Button>
+          </Grid>
+        </form>
+      </Fragment>
+    )
+  }
+}
+
+MessageField = withStyles(fieldStyle)(MessageField)
+
+
+const roomStyle = {
+}
 
 class Room extends Component {
   state = {
@@ -94,19 +175,21 @@ class Room extends Component {
     let chatSocket = new WebSocket(`ws://127.0.0.1:8000/ws/chat/room/${url_room_id}/`)
     chatSocket.onclose = this.socketClose
     chatSocket.onmessage = this.socketMessage
-    window.chatSocket = chatSocket
-    window.send = (message) => {
+    this.sendMessage = (message) => {
       chatSocket.send(JSON.stringify({
         'message': message
       }))
     }
-    chatSocket.onopen = () => { window.send('Hello!\n666\n777') }
+    window.chatSocket = chatSocket
+    window.send = this.sendMessage  //!!!!!!!!!!!!!
+    chatSocket.onopen = () => { window.send('Hello!') }
     this.chatSocket = chatSocket
     this.disconnectRoom = () => {
       chatSocket.close()
     }
   }
   disconnectRoom() { }
+  sendMessage() { }
   msgHandles = {
     ERROR: 0,
     0: (data) => {
@@ -131,25 +214,21 @@ class Room extends Component {
     3: (data) => {
       let user = data.user
       if (user.id === this.state.user.id) { return }
-      let username = this.getUsername(user)
       this.setState((state) => {
         state.room.onlineNumber = data.onlineNumber
         return { room: state.room }
       })
-      let msg = `${username} 进入房间`
-      this.toastRef.current.open(msg)
+      this.toastRef.current.open(`${user.username} 进入房间`)
     },
     LEAVE_ROOM: 4,
     4: (data) => {
       let user = data.user
       if (user.id === this.state.user.id) { return }
-      let username = this.getUsername(user)
       this.setState((state) => {
         state.room.onlineNumber = data.onlineNumber
         return { room: state.room }
       })
-      let msg = `${username} 离开房间`
-      this.toastRef.current.open(msg)
+      this.toastRef.current.open(`${user.username} 离开房间`)
     },
   }
   close_codes = {
@@ -166,13 +245,6 @@ class Room extends Component {
   socketClose = (event) => {
     console.log(event)
   }
-  getUsername(user) {
-    let username = user.username
-    if (user.isAnonymous) {
-      username = `游客(${user.id})`
-    }
-    return username
-  }
   render() {
     let { room, messages, user } = this.state
     let messageList = messages.map((data, index) => {
@@ -185,6 +257,7 @@ class Room extends Component {
       <Fragment>
         <Topbar>{`${room.name}   ${room.onlineNumber}/${room.maxNumber}`}</Topbar>
         <List>{messageList}</List>
+        <MessageField sendMessage={this.sendMessage} />
         <Toast ref={this.toastRef}></Toast>
       </Fragment>
     )
@@ -192,4 +265,4 @@ class Room extends Component {
 }
 
 
-export default Room
+export default withStyles(roomStyle)(Room)

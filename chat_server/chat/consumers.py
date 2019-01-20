@@ -119,15 +119,12 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
 
     async def connect(self):
         self.room_id = self.scope['url_route']['kwargs']['room_id']
-        user = self.scope['user']
-        self.user = {
-            'id': user.id,
-            'isAnonymous': user.is_anonymous,
-            'username': user.username,
-        }
         # set id to distinguish anonymous users
-        if user.is_anonymous:
-            self.user['id'] = self.channel_name.replace('specific..inmemory!', '', 1)
+        user_id = self.channel_name.replace('specific..inmemory!', '', 1)
+        self.user = {
+            'id': user_id,
+            'username': f'游客({user_id})',
+        }
         try:
             await room_manager.join_room(self.room_id, self.channel_name, self.user)
             await self.accept()
