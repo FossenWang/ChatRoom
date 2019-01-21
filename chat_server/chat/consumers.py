@@ -125,9 +125,10 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
             'id': user_id,
             'username': f'游客({user_id})',
         }
+        # accept first or no close code
+        await self.accept()
         try:
             await room_manager.join_room(self.room_id, self.channel_name, self.user)
-            await self.accept()
             await self.send_user_room_info()
             await room_manager.room_send(self.room_id, {
                 'type': 'join_room_msg',
@@ -157,23 +158,24 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
     # Receive message from WebSocket
     async def receive_json(self, data):
         message = data.get('message')
-        try:
-            self.validate_message(message)
-            message = str(message)
-        except Exception as e:
-            # Wrong message will only be send to sender,
-            # and won't be send to others
-            await self.send_json({
-                'msg_type': self.msg_types.ERROR,
-                'message': message,
-                'error': str(e)})
-            return
+        self.validate_message(message)
+        message = str(message)
 
         # Send message to room group
         await room_manager.room_send(self.room_id, {
             'type': 'chat_message',
             'message': message,
             'user': self.user})
+
+    async def receive(self, text_data=None, bytes_data=None):
+        try:
+            await super().receive(text_data, bytes_data)
+        except Exception as e:
+            # Wrong message will only be send to sender,
+            # and won't be send to others
+            await self.send_json({
+                'msg_type': self.msg_types.ERROR,
+                'error': str(e)})
 
     def validate_message(self, message):
         assert message, 'Message is empty'

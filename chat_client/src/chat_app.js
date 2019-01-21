@@ -19,9 +19,6 @@ const appStyle = {
       fontFamily: '"Roboto", Helvetica, "Lucida Sans", "Microsoft YaHei", Georgia, Arial, Sans-serif',
     },
   },
-  placeholder: {
-    height: 56,
-  }
 }
 
 class ChatApp extends Component {

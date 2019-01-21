@@ -69,7 +69,7 @@ class ChatMessage extends Component {
 
 ChatMessage = withStyles(messageStyle)(ChatMessage)
 
-const fieldStyle = {
+const formStyle = {
   form: {
     padding: 8,
     background: '#f5f5f5',
@@ -104,24 +104,27 @@ const fieldStyle = {
   }
 }
 
-class MessageField extends Component {
+class MessageForm extends Component {
   state = { value: '', rows: 1, formHeight: 42 }
+  textareaRef = createRef()
   handleChange = (event) => {
     let textarea = event.target
     textarea.rows = 1
     let textRows = Math.ceil((textarea.scrollHeight - 8) / 18)
     if (textRows > 5) { textarea.rows = 5 }
     else { textarea.rows = textRows }
-    this.setState({ value: textarea.value, rows: textarea.rows, formHeight: textarea.clientHeight + 16 })
+    let formHeight = textarea.clientHeight + 16
+    this.setState({ value: textarea.value, rows: textarea.rows, formHeight: formHeight })
   }
   submitMessage = (event) => {
     let value = this.textareaRef.current.value
     if (this.validate(value)) {
       this.props.sendMessage(value)
+      // reset form value
       let textarea = this.textareaRef.current
       textarea.value = ''
       textarea.rows = 1
-      this.setState({ value: textarea.value, rows: textarea.rows, formHeight: textarea.clientHeight + 16 })
+      this.setState({ value: '', rows: 1, formHeight: 42 })
     }
   }
   validate(value) {
@@ -130,7 +133,6 @@ class MessageField extends Component {
     valid = value.search('^[\\s\\f\\r\\t\\n]*$') < 0
     return valid
   }
-  textareaRef = createRef()
   render() {
     let { classes } = this.props
     let { value, rows, formHeight } = this.state
@@ -153,7 +155,7 @@ class MessageField extends Component {
   }
 }
 
-MessageField = withStyles(fieldStyle)(MessageField)
+MessageForm = withStyles(formStyle)(MessageForm)
 
 
 const roomStyle = {
@@ -161,7 +163,8 @@ const roomStyle = {
 
 class Room extends Component {
   state = {
-    room: {}, user: {}, messages: []
+    room: {}, user: {}, messages: [],
+    webSocketOpen: false, title: ''
   }
   toastRef = createRef()
   componentDidMount() {
@@ -175,21 +178,39 @@ class Room extends Component {
     let chatSocket = new WebSocket(`ws://127.0.0.1:8000/ws/chat/room/${url_room_id}/`)
     chatSocket.onclose = this.socketClose
     chatSocket.onmessage = this.socketMessage
+    chatSocket.onopen = () => {
+      this.sendMessage('Hello!')
+      this.setState({webSocketOpen: true})
+    }
     this.sendMessage = (message) => {
       chatSocket.send(JSON.stringify({
         'message': message
       }))
     }
-    window.chatSocket = chatSocket
-    window.send = this.sendMessage  //!!!!!!!!!!!!!
-    chatSocket.onopen = () => { window.send('Hello!') }
-    this.chatSocket = chatSocket
     this.disconnectRoom = () => {
       chatSocket.close()
     }
   }
   disconnectRoom() { }
   sendMessage() { }
+  socketMessage = (event) => {
+    let data = JSON.parse(event.data)
+    let handle = this.msgHandles[data.msg_type]
+    if (handle !== undefined) {
+      handle(data)
+    }
+  }
+  socketClose = (event) => {
+    let title
+    if (event.code === this.close_codes.ROOM_NOT_EXIST) {
+      title = '房间不存在'
+    } else if (event.code === this.close_codes.ROOM_FULL) {
+      title = '房间已满'
+    } else {
+      title = '好像出了点问题~'
+    }
+    this.setState({webSocketOpen: false, title: title})
+  }
   msgHandles = {
     ERROR: 0,
     0: (data) => {
@@ -208,7 +229,8 @@ class Room extends Component {
     },
     USER_ROOM_INFO: 2,
     2: (data) => {
-      this.setState({ room: data.room, user: data.user })
+      let title = this.getRoomTitle(data.room)
+      this.setState({ room: data.room, user: data.user, title: title})
     },
     JOIN_ROOM: 3,
     3: (data) => {
@@ -216,7 +238,7 @@ class Room extends Component {
       if (user.id === this.state.user.id) { return }
       this.setState((state) => {
         state.room.onlineNumber = data.onlineNumber
-        return { room: state.room }
+        return { room: state.room, title: this.getRoomTitle(state.room) }
       })
       this.toastRef.current.open(`${user.username} 进入房间`)
     },
@@ -226,7 +248,7 @@ class Room extends Component {
       if (user.id === this.state.user.id) { return }
       this.setState((state) => {
         state.room.onlineNumber = data.onlineNumber
-        return { room: state.room }
+        return { room: state.room, title: this.getRoomTitle(state.room) }
       })
       this.toastRef.current.open(`${user.username} 离开房间`)
     },
@@ -235,18 +257,11 @@ class Room extends Component {
     ROOM_NOT_EXIST: 3000,
     ROOM_FULL: 3001,
   }
-  socketMessage = (event) => {
-    let data = JSON.parse(event.data)
-    let handle = this.msgHandles[data.msg_type]
-    if (handle !== undefined) {
-      handle(data)
-    }
-  }
-  socketClose = (event) => {
-    console.log(event)
+  getRoomTitle(room) {
+    return `${room.name}  ${room.onlineNumber}/${room.maxNumber}`
   }
   render() {
-    let { room, messages, user } = this.state
+    let { messages, user, webSocketOpen, title } = this.state
     let messageList = messages.map((data, index) => {
       return (
         <ChatMessage key={index} message={data.message}
@@ -255,9 +270,9 @@ class Room extends Component {
     })
     return (
       <Fragment>
-        <Topbar>{`${room.name}   ${room.onlineNumber}/${room.maxNumber}`}</Topbar>
+        <Topbar>{title}</Topbar>
         <List>{messageList}</List>
-        <MessageField sendMessage={this.sendMessage} />
+        {webSocketOpen ? <MessageForm sendMessage={this.sendMessage} /> : null}
         <Toast ref={this.toastRef}></Toast>
       </Fragment>
     )

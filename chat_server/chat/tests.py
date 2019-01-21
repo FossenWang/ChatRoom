@@ -62,8 +62,10 @@ class ChatTestCase(TestCase):
 
         # room dose not exist
         communicator = WebsocketCommunicator(application, "ws/chat/room/10/")
-        connected, code = await communicator.connect()
-        assert not connected and code == ChatConsumer.codes.ROOM_NOT_EXIST
+        connected, _ = await communicator.connect()
+        assert connected
+        receive_data = await communicator.receive_output()
+        assert receive_data['code'] == ChatConsumer.codes.ROOM_NOT_EXIST
 
         # room full
         communicator_list = []
@@ -74,8 +76,10 @@ class ChatTestCase(TestCase):
             communicator_list.append(communicator)
 
         communicator = WebsocketCommunicator(application, "ws/chat/room/1/")
-        connected, code = await communicator.connect()
-        assert not connected and code == ChatConsumer.codes.ROOM_FULL
+        connected, _ = await communicator.connect()
+        assert connected
+        receive_data = await communicator.receive_output()
+        assert receive_data['code'] == ChatConsumer.codes.ROOM_FULL
 
         for communicator in communicator_list:
             await communicator.disconnect()
@@ -98,7 +102,6 @@ class ChatTestCase(TestCase):
         await communicator.send_json_to(send_data)
         receive_data = await communicator.receive_json_from()
         self.assertEqual(receive_data['msg_type'], ChatConsumer.msg_types.ERROR)
-        self.assertEqual(send_data['message'], receive_data['message'])
         self.assertIn('error', receive_data)
 
     def _test_online_number(self, online_number):
