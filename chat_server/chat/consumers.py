@@ -106,9 +106,10 @@ room_manager = RoomManager()
 
 
 class ChatConsumer(AsyncJsonWebsocketConsumer):
-    class codes:
+    class close_codes:
         ROOM_NOT_EXIST = 3000
         ROOM_FULL = 3001
+        NOT_LOGIN = 3002
 
     class msg_types:
         ERROR = 0
@@ -118,16 +119,27 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
         LEAVE_ROOM = 4
 
     async def connect(self):
-        self.room_id = self.scope['url_route']['kwargs']['room_id']
-        # set id to distinguish anonymous users
-        user_id = self.channel_name.replace('specific..inmemory!', '', 1)
-        self.user = {
-            'id': user_id,
-            'username': f'游客({user_id})',
-        }
         # accept first or no close code
         await self.accept()
+
+        user_object = self.scope['user']
+        if not user_object.is_authenticated:
+            await self.close(self.close_codes.NOT_LOGIN)
+            raise StopConsumer()
+
+        # # set id to distinguish anonymous users
+        # user_id = self.channel_name.replace('specific..inmemory!', '', 1)
+        # self.user = {
+        #     'id': user_id,
+        #     'username': f'游客({user_id})',
+        # }
         try:
+            self.room_id = self.scope['url_route']['kwargs']['room_id']
+            self.user = {
+                'id': user_object.id,
+                'username': user_object.username,
+                'avatar': user_object.avatar,
+            }
             await room_manager.join_room(self.room_id, self.channel_name, self.user)
             await self.send_user_room_info()
             await room_manager.room_send(self.room_id, {
@@ -136,14 +148,14 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
                 'onlineNumber': room_manager.get_online_number(self.room_id),
             })
         except ObjectDoesNotExist:
-            await self.close(self.codes.ROOM_NOT_EXIST)
+            await self.close(self.close_codes.ROOM_NOT_EXIST)
             raise StopConsumer()
         except RoomFull:
-            await self.close(self.codes.ROOM_FULL)
+            await self.close(self.close_codes.ROOM_FULL)
             raise StopConsumer()
 
     async def disconnect(self, close_code):
-        if close_code == self.codes.ROOM_NOT_EXIST:
+        if close_code == self.close_codes.ROOM_NOT_EXIST:
             return
         try:
             await room_manager.leave_room(self.room_id, self.channel_name)

@@ -4,10 +4,6 @@ from .consumers import room_manager
 from .models import Room
 
 
-def home(request):
-    return JsonResponse('home', safe=False)
-
-
 def chatroom_list(request):
     room_list = Room.objects.values()
     rooms = []

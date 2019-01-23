@@ -4,14 +4,16 @@ from channels.testing import WebsocketCommunicator
 from utils import async_to_sync_function
 from chat_server.routing import application
 from .consumers import ChatConsumer
+from .models import User
 
 
 class ChatTestCase(TestCase):
     @async_to_sync_function
     async def test_chat(self):
         communicator_list = []
-        for _ in range(5):
+        for user in User.objects.all()[:3]:
             communicator = WebsocketCommunicator(application, "ws/chat/room/1/")
+            communicator.scope['user'] = user
             connected, _ = await communicator.connect()
             assert connected
             communicator_list.append(communicator)
@@ -44,7 +46,7 @@ class ChatTestCase(TestCase):
             receive_data = await communicator.receive_json_from()
             self.assertEqual(receive_data['msg_type'], ChatConsumer.msg_types.JOIN_ROOM)
             self.assertDictEqual(receive_data['user'], new_communicator.user)
-            self.assertEqual(receive_data['onlineNumber'], 6)
+            self.assertEqual(receive_data['onlineNumber'], 4)
 
         await new_communicator.disconnect()
         # receive leave msg
@@ -52,7 +54,7 @@ class ChatTestCase(TestCase):
             receive_data = await communicator.receive_json_from()
             self.assertEqual(receive_data['msg_type'], ChatConsumer.msg_types.LEAVE_ROOM)
             self.assertDictEqual(receive_data['user'], new_communicator.user)
-            self.assertEqual(receive_data['onlineNumber'], 5)
+            self.assertEqual(receive_data['onlineNumber'], 3)
 
         # close websocket
         for communicator in communicator_list:
@@ -69,7 +71,7 @@ class ChatTestCase(TestCase):
 
         # room full
         communicator_list = []
-        for _ in range(10):
+        for _ in range(5):
             communicator = WebsocketCommunicator(application, "ws/chat/room/1/")
             connected, _ = await communicator.connect()
             assert connected
