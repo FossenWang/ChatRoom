@@ -4,7 +4,7 @@ from channels.testing import WebsocketCommunicator
 from utils import async_to_sync_function
 from chat_server.routing import application
 from .consumers import ChatConsumer
-from .models import User
+from account.models import User
 
 
 class ChatTestCase(TestCase):
@@ -13,7 +13,6 @@ class ChatTestCase(TestCase):
         communicator_list = []
         for user in User.objects.all()[:3]:
             communicator = WebsocketCommunicator(application, "ws/chat/room/1/")
-            communicator.scope['user'] = user
             connected, _ = await communicator.connect()
             assert connected
             communicator_list.append(communicator)
@@ -67,7 +66,7 @@ class ChatTestCase(TestCase):
         connected, _ = await communicator.connect()
         assert connected
         receive_data = await communicator.receive_output()
-        assert receive_data['code'] == ChatConsumer.codes.ROOM_NOT_EXIST
+        assert receive_data['code'] == ChatConsumer.close_codes.ROOM_NOT_EXIST
 
         # room full
         communicator_list = []
@@ -81,7 +80,7 @@ class ChatTestCase(TestCase):
         connected, _ = await communicator.connect()
         assert connected
         receive_data = await communicator.receive_output()
-        assert receive_data['code'] == ChatConsumer.codes.ROOM_FULL
+        assert receive_data['code'] == ChatConsumer.close_codes.ROOM_FULL
 
         for communicator in communicator_list:
             await communicator.disconnect()

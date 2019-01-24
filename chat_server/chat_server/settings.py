@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'corsheaders',
     'channels',
+    'account',
     'chat',
 ]
 
@@ -135,7 +136,7 @@ CHANNEL_LAYERS = {
 
 
 # Auth
-AUTH_USER_MODEL = 'chat.User'
+AUTH_USER_MODEL = 'account.User'
 
 
 # CORS
