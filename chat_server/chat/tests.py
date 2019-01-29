@@ -1,18 +1,25 @@
 from django.test import TestCase
 from channels.testing import WebsocketCommunicator
+from channels.db import database_sync_to_async
 
-from utils import async_to_sync_function
 from chat_server.routing import application
-from .consumers import ChatConsumer
+from utils import async_to_sync_function
 from account.models import User
+
+from .models import Room
+from .consumers import ChatConsumer
 
 
 class ChatTestCase(TestCase):
     @async_to_sync_function
     async def test_chat(self):
         communicator_list = []
-        for user in User.objects.all()[:3]:
-            communicator = WebsocketCommunicator(application, "ws/chat/room/1/")
+        users = await self.get_users()
+        for user in users[:3]:
+            session_cookie = await self.login_user(user)
+            communicator = WebsocketCommunicator(
+                application, "ws/chat/room/1/",
+                headers=[(b'cookie', bytes(f'sessionid={session_cookie}', 'utf8'))])
             connected, _ = await communicator.connect()
             assert connected
             communicator_list.append(communicator)
@@ -20,7 +27,7 @@ class ChatTestCase(TestCase):
             receive_data = await communicator.receive_json_from()
             self.assertEqual(receive_data['msg_type'], ChatConsumer.msg_types.USER_ROOM_INFO)
             communicator.user = receive_data['user']
-            self.assertEqual(set(receive_data['user']), {'id', 'username'})
+            self.assertEqual(set(receive_data['user']), {'id', 'username', 'avatar'})
             self.assertEqual(set(receive_data['room']), {'id', 'name', 'onlineNumber', 'maxNumber'})
 
         await self.assertMessageNoError(communicator_list, 'test')
@@ -34,7 +41,10 @@ class ChatTestCase(TestCase):
         self._test_online_number(len(communicator_list))
 
         # test join % leave room msg
-        new_communicator = WebsocketCommunicator(application, "ws/chat/room/1/")
+        session_cookie = await self.login_user(users[4])
+        new_communicator = WebsocketCommunicator(
+            application, "ws/chat/room/1/",
+            headers=[(b'cookie', bytes(f'sessionid={session_cookie}', 'utf8'))])
         connected, _ = await new_communicator.connect()
         assert connected
         receive_data = await new_communicator.receive_json_from()
@@ -61,8 +71,17 @@ class ChatTestCase(TestCase):
 
         self._test_online_number(0)
 
+        # login required
+        communicator = WebsocketCommunicator(application, "ws/chat/room/1/")
+        connected, _ = await communicator.connect()
+        assert connected
+        receive_data = await communicator.receive_output()
+        assert receive_data['code'] == ChatConsumer.close_codes.NOT_LOGIN
+
         # room dose not exist
-        communicator = WebsocketCommunicator(application, "ws/chat/room/10/")
+        communicator = WebsocketCommunicator(
+            application, "ws/chat/room/10/",
+            headers=[(b'cookie', bytes(f'sessionid={session_cookie}', 'utf8'))])
         connected, _ = await communicator.connect()
         assert connected
         receive_data = await communicator.receive_output()
@@ -70,13 +89,19 @@ class ChatTestCase(TestCase):
 
         # room full
         communicator_list = []
-        for _ in range(5):
-            communicator = WebsocketCommunicator(application, "ws/chat/room/1/")
+        for user in users[:5]:
+            session_cookie = await self.login_user(user)
+            communicator = WebsocketCommunicator(
+                application, "ws/chat/room/1/",
+                headers=[(b'cookie', bytes(f'sessionid={session_cookie}', 'utf8'))])
             connected, _ = await communicator.connect()
             assert connected
             communicator_list.append(communicator)
 
-        communicator = WebsocketCommunicator(application, "ws/chat/room/1/")
+        session_cookie = await self.login_user(users[5])
+        communicator = WebsocketCommunicator(
+            application, "ws/chat/room/1/",
+            headers=[(b'cookie', bytes(f'sessionid={session_cookie}', 'utf8'))])
         connected, _ = await communicator.connect()
         assert connected
         receive_data = await communicator.receive_output()
@@ -112,3 +137,13 @@ class ChatTestCase(TestCase):
         data = rsp.json()
         self.assertEqual(set(data['rooms'][0]), {'id', 'name', 'onlineNumber', 'maxNumber'})
         self.assertEqual(data['rooms'][0]['onlineNumber'], online_number)
+
+    @database_sync_to_async
+    def get_users(self):
+        return list(User.objects.filter(is_superuser=False))
+
+    async def login_user(self, user):
+        is_login = await database_sync_to_async(self.client.login)(
+            username=user.username, password='123456')
+        assert is_login
+        return self.client.cookies['sessionid'].value

@@ -122,24 +122,18 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
         # accept first or no close code
         await self.accept()
 
-        # user_object = self.scope['user']
-        # if not user_object.is_authenticated:
-        #     await self.close(self.close_codes.NOT_LOGIN)
-        #     raise StopConsumer()
+        user_object = self.scope['user']
+        if not user_object.is_authenticated:
+            await self.close(self.close_codes.NOT_LOGIN)
+            raise StopConsumer()
 
-        # set id to distinguish anonymous users
-        user_id = self.channel_name.replace('specific..inmemory!', '', 1)
-        self.user = {
-            'id': user_id,
-            'username': f'游客({user_id})',
-        }
         try:
             self.room_id = self.scope['url_route']['kwargs']['room_id']
-            # self.user = {
-            #     'id': user_object.id,
-            #     'username': user_object.username,
-            #     'avatar': user_object.avatar,
-            # }
+            self.user = {
+                'id': user_object.id,
+                'username': user_object.username,
+                'avatar': user_object.avatar,
+            }
             await room_manager.join_room(self.room_id, self.channel_name, self.user)
             await self.send_user_room_info()
             await room_manager.room_send(self.room_id, {

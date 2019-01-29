@@ -9,7 +9,7 @@ import django.utils.timezone
 def initial_data(apps, schema_editor):
     from account.models import User
     User.objects.create_superuser('admin', None, 'admin123')
-    for name in ('Fossen', 'Jack', 'Tom', 'Smith', 'Bruce'):
+    for name in ('Fossen', 'Jack', 'Tom', 'Smith', 'Bruce', 'David'):
         User.objects.create_user(name, None, '123456')
 
 

@@ -10,7 +10,7 @@ class AccountTestCase(TestCase):
                      {'username': 'Fossen', 'password': '123456'})
         self.assertEqual(rsp.status_code, 403)
 
-        # psot request need csrf token
+        # post request need csrf token
         rsp = c.get('/api/csrf/')
         self.assertEqual(rsp.status_code, 200)
         csrftoken = rsp.json()['csrftoken']
