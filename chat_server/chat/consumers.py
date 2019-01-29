@@ -15,11 +15,6 @@ class RoomFull(Exception):
 
 class RoomManager:
     def __init__(self):
-        # rooms = {
-        #     'name': '',
-        #     'max_number': 10,
-        #     'online_users': {channel_name: user}
-        # }
         self.active_rooms = {}
         self.channel_layer = get_channel_layer()
 
@@ -33,12 +28,14 @@ class RoomManager:
         room_object = await self.get_room_from_db(room_id)
 
         if room_id not in self.active_rooms:
-            # 异步获取room期间，其他协程可能已更新self.active_rooms
+            # When get room from db asynchronously
+            # other coroutines may populate the room
             self.active_rooms[room_id] = {
                 'id': room_object.id,
                 'name': room_object.name,
                 'max_number': room_object.max_number,
                 'online_users': {},
+                'user_channels': {},
             }
         return self.active_rooms[room_id]
 
@@ -54,22 +51,41 @@ class RoomManager:
         if len(room['online_users']) >= room['max_number']:
             raise RoomFull('Room is full')
 
-        room['online_users'][channel_name] = user
+        user_id = user['id']
+
+        # When user login on other websocket, force to close the old one
+        user_already_in_room = False
+        if user_id in room['user_channels']:
+            user_already_in_room = True
+            await self.channel_layer.group_discard(
+                self.get_room_group_name(room_id),
+                room['user_channels'][user_id],
+            )
+            await self.channel_layer.send(
+                room['user_channels'][user_id],
+                {'type': 'websocket.disconnect', 'code': 3003}
+            )
+
+        room['online_users'][user_id] = user
+        room['user_channels'][user_id] = channel_name
         await self.channel_layer.group_add(
             self.get_room_group_name(room_id),
             channel_name,
         )
+        return user_already_in_room
 
-    async def leave_room(self, room_id, channel_name):
+    async def leave_room(self, room_id, user_id):
         # Leave room group
         room = await self.get_room(room_id)
-        del room['online_users'][channel_name]
-        if not room['online_users']:
-            del self.active_rooms[room_id]
+        channel_name = room['user_channels'][user_id]
         await self.channel_layer.group_discard(
             self.get_room_group_name(room_id),
             channel_name,
         )
+        del room['user_channels'][user_id]
+        del room['online_users'][user_id]
+        if not room['online_users']:
+            del self.active_rooms[room_id]
 
     async def room_send(self, room_id, event):
         await self.channel_layer.group_send(
@@ -91,14 +107,15 @@ class RoomManager:
     def _clean_active_room(self, room_id):
         room = self.active_rooms.get(room_id)
         if room:
-            # 不同 backend 的 channel_layer 的 groups 获取方式不同
-            # 此处仅为 InMemoryChannelLayer 的用法
+            # "channel_layer.groups" is not common api,
+            # can only be used in InMemoryChannelLayer
             room_group_name = self.get_room_group_name(room_id)
             room_group = self.channel_layer.groups.get(room_group_name, {})
 
-            for channel_name in list(room['online_users'].keys()):
+            for key, channel_name in room['user_channels'].items():
                 if channel_name not in room_group:
-                    del room['online_users'][channel_name]
+                    del room['user_channels'][key]
+                    del room['online_users'][key]
             if not room['online_users']:
                 del self.active_rooms[room_id]
 
@@ -110,6 +127,7 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
         ROOM_NOT_EXIST = 3000
         ROOM_FULL = 3001
         NOT_LOGIN = 3002
+        OTHER_LOGIN = 3003
 
     class msg_types:
         ERROR = 0
@@ -119,7 +137,7 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
         LEAVE_ROOM = 4
 
     async def connect(self):
-        # accept first or no close code
+        # Accept first or no close code
         await self.accept()
 
         user_object = self.scope['user']
@@ -134,8 +152,11 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
                 'username': user_object.username,
                 'avatar': user_object.avatar,
             }
-            await room_manager.join_room(self.room_id, self.channel_name, self.user)
+            user_already_in_room = await room_manager.join_room(
+                self.room_id, self.channel_name, self.user)
             await self.send_user_room_info()
+            if user_already_in_room:
+                return
             await room_manager.room_send(self.room_id, {
                 'type': 'join_room_msg',
                 'user': self.user,
@@ -149,10 +170,15 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
             raise StopConsumer()
 
     async def disconnect(self, close_code):
-        if close_code == self.close_codes.ROOM_NOT_EXIST:
+        if close_code in (
+                self.close_codes.ROOM_FULL,
+                self.close_codes.ROOM_NOT_EXIST,
+                self.close_codes.NOT_LOGIN,
+                self.close_codes.OTHER_LOGIN):
             return
+
         try:
-            await room_manager.leave_room(self.room_id, self.channel_name)
+            await room_manager.leave_room(self.room_id, self.user['id'])
             await room_manager.room_send(self.room_id, {
                 'type': 'leave_room_msg',
                 'user': self.user,
@@ -212,6 +238,8 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
         })
 
     async def join_room_msg(self, event):
+        if event['user']['id'] == self.user['id']:
+            return
         await self.send_json({
             'msg_type': self.msg_types.JOIN_ROOM,
             'user': event['user'],

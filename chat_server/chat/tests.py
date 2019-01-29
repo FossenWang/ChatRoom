@@ -6,7 +6,6 @@ from chat_server.routing import application
 from utils import async_to_sync_function
 from account.models import User
 
-from .models import Room
 from .consumers import ChatConsumer
 
 
@@ -40,7 +39,7 @@ class ChatTestCase(TestCase):
         await self.assertMessageError(communicator_list[0], 'x' * 501)
         self._test_online_number(len(communicator_list))
 
-        # test join % leave room msg
+        # test join & leave room msg
         session_cookie = await self.login_user(users[4])
         new_communicator = WebsocketCommunicator(
             application, "ws/chat/room/1/",
@@ -57,19 +56,23 @@ class ChatTestCase(TestCase):
             self.assertDictEqual(receive_data['user'], new_communicator.user)
             self.assertEqual(receive_data['onlineNumber'], 4)
 
-        await new_communicator.disconnect()
+        # user login on other websocket
+        session_cookie = await self.login_user(users[4])
+        other_communicator = WebsocketCommunicator(
+            application, "ws/chat/room/1/",
+            headers=[(b'cookie', bytes(f'sessionid={session_cookie}', 'utf8'))])
+        connected, _ = await other_communicator.connect()
+        assert connected
+        receive_data = await other_communicator.receive_json_from()
+        self.assertEqual(receive_data['msg_type'], ChatConsumer.msg_types.USER_ROOM_INFO)
+
         # receive leave msg
+        await other_communicator.disconnect()
         for communicator in communicator_list:
             receive_data = await communicator.receive_json_from()
             self.assertEqual(receive_data['msg_type'], ChatConsumer.msg_types.LEAVE_ROOM)
             self.assertDictEqual(receive_data['user'], new_communicator.user)
             self.assertEqual(receive_data['onlineNumber'], 3)
-
-        # close websocket
-        for communicator in communicator_list:
-            await communicator.disconnect()
-
-        self._test_online_number(0)
 
         # login required
         communicator = WebsocketCommunicator(application, "ws/chat/room/1/")
@@ -88,8 +91,7 @@ class ChatTestCase(TestCase):
         assert receive_data['code'] == ChatConsumer.close_codes.ROOM_NOT_EXIST
 
         # room full
-        communicator_list = []
-        for user in users[:5]:
+        for user in users[3:5]:
             session_cookie = await self.login_user(user)
             communicator = WebsocketCommunicator(
                 application, "ws/chat/room/1/",
@@ -107,8 +109,10 @@ class ChatTestCase(TestCase):
         receive_data = await communicator.receive_output()
         assert receive_data['code'] == ChatConsumer.close_codes.ROOM_FULL
 
+        # close websockets
         for communicator in communicator_list:
             await communicator.disconnect()
+        self._test_online_number(0)
 
     async def assertMessageNoError(self, communicator_list, message):
         # test send & receive message
