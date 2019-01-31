@@ -1,7 +1,5 @@
 import React, { Component, Fragment, createRef } from 'react'
 
-// import { Link } from "react-router-dom"
-
 import List from '@material-ui/core/List'
 import ListItem from '@material-ui/core/ListItem'
 import Grid from '@material-ui/core/Grid'
@@ -68,6 +66,7 @@ class ChatMessage extends Component {
 }
 
 ChatMessage = withStyles(messageStyle)(ChatMessage)
+
 
 const formStyle = {
   form: {
@@ -200,17 +199,6 @@ class Room extends Component {
       handle(data)
     }
   }
-  socketClose = (event) => {
-    let title
-    if (event.code === this.close_codes.ROOM_NOT_EXIST) {
-      title = '房间不存在'
-    } else if (event.code === this.close_codes.ROOM_FULL) {
-      title = '房间已满'
-    } else {
-      title = '好像出了点问题~'
-    }
-    this.setState({webSocketOpen: false, title: title})
-  }
   msgHandles = {
     ERROR: 0,
     0: (data) => {
@@ -253,9 +241,32 @@ class Room extends Component {
       this.toastRef.current.open(`${user.username} 离开房间`)
     },
   }
+  socketClose = (event) => {
+    let title
+    if (event.code === this.close_codes.ROOM_NOT_EXIST) {
+      title = '房间不存在'
+    } else if (event.code === this.close_codes.ROOM_FULL) {
+      title = '房间已满'
+    } else if (event.code === this.close_codes.NOT_LOGIN) {
+      title = '未登录'
+      let { history, location } = this.props
+      history.replace('/login?next=' + location.pathname)
+      return
+    } else if (event.code === this.close_codes.OTHER_LOGIN) {
+      title = '在其他页面登录了聊天室'
+    } else if (event.code === 1000) {
+      return
+    } else {
+      title = '好像出了点问题~'
+    }
+    console.log(event, event.code)
+    this.setState({webSocketOpen: false, title: title})
+  }
   close_codes = {
     ROOM_NOT_EXIST: 3000,
     ROOM_FULL: 3001,
+    NOT_LOGIN: 3002,
+    OTHER_LOGIN: 3003,
   }
   getRoomTitle(room) {
     return `${room.name}  ${room.onlineNumber}/${room.maxNumber}`

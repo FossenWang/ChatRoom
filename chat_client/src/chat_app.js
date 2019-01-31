@@ -6,6 +6,7 @@ import { withStyles } from '@material-ui/core/styles'
 
 import RoomList from './room_list'
 import Room from './room'
+import LoginPage from './login'
 import { NoMatch } from './utils/components'
 
 
@@ -29,6 +30,7 @@ class ChatApp extends Component {
           <Switch>
             <Route exact path='/' component={RoomList} />
             <Route exact path='/room/:id(\d+)' component={Room} />
+            <Route exact path='/login' component={LoginPage} />
             <Route component={NoMatch}/>
           </Switch>
         </Fragment>
