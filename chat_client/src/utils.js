@@ -3,6 +3,7 @@ import React, { Component } from 'react'
 import { withStyles } from '@material-ui/core/styles'
 import Grid from '@material-ui/core/Grid'
 import Snackbar from '@material-ui/core/Snackbar'
+import Avatar from '@material-ui/core/Avatar'
 
 
 const noMatchStyle = {
@@ -54,4 +55,11 @@ class Toast extends Component {
 }
 
 
-export { NoMatch, Toast }
+const UserAvatar = (props) => {
+  return <Avatar
+    src={props.src ? props.src : '/default_avatar.png'}
+    style={{height: 36, width: 36}} />
+}
+
+
+export { NoMatch, Toast, UserAvatar }

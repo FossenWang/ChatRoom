@@ -7,7 +7,7 @@ import Button from '@material-ui/core/Button'
 import { withStyles } from '@material-ui/core/styles'
 
 import Topbar from './topbar'
-import { Toast } from './utils/components'
+import { Toast } from './utils'
 
 
 const messageStyle = {
@@ -269,7 +269,12 @@ class Room extends Component {
     OTHER_LOGIN: 3003,
   }
   getRoomTitle(room) {
-    return `${room.name}  ${room.onlineNumber}/${room.maxNumber}`
+    return (
+      <div>
+        {room.name}&emsp;{`${room.onlineNumber}人在线${
+          room.onlineNumber === room.maxNumber ? '(已满)' : ''}`}
+      </div>
+    )
   }
   render() {
     let { messages, user, webSocketOpen, title } = this.state
@@ -281,7 +286,10 @@ class Room extends Component {
     })
     return (
       <Fragment>
-        <Topbar>{title}</Topbar>
+        <Topbar>
+          <div>{title}</div>
+          <div style={{flex: 1, textAlign: 'right'}}>Fossen</div>
+        </Topbar>
         <List>{messageList}</List>
         {webSocketOpen ? <MessageForm sendMessage={this.sendMessage} /> : null}
         <Toast ref={this.toastRef}></Toast>

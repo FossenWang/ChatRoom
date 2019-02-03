@@ -6,6 +6,9 @@ class AccountTestCase(TestCase):
     def test_login(self):
         c = Client(enforce_csrf_checks=True)
 
+        rsp = c.get('/api/account/user/current/')
+        self.assertDictEqual(rsp.json(), {'id': None, 'username': '', 'avatar': None})
+
         rsp = c.post('/api/account/login/',
                      {'username': 'Fossen', 'password': '123456'})
         self.assertEqual(rsp.status_code, 403)
@@ -20,6 +23,9 @@ class AccountTestCase(TestCase):
                      HTTP_X_CSRFTOKEN=csrftoken)
         self.assertEqual(rsp.status_code, 200)
         self.assertTrue(rsp.json()['login'])
+
+        rsp = c.get('/api/account/user/current/')
+        self.assertDictEqual(rsp.json(), {'id': 2, 'username': 'Fossen', 'avatar': None})
 
         # fail login
         rsp = c.get('/api/csrf/')

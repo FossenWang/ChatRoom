@@ -19,3 +19,12 @@ class LoginView(View):
 def logout_view(request):
     logout(request)
     return JsonResponse({'logout': True})
+
+
+def user_view(request):
+    user = request.user
+    return JsonResponse({
+        'id': user.id,
+        'username': user.username,
+        'avatar': user.avatar if user.is_authenticated else None,
+    })

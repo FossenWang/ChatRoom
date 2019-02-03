@@ -3,7 +3,7 @@ import React, { Component, createRef } from 'react'
 import { withStyles } from '@material-ui/core/styles'
 import Grid from '@material-ui/core/Grid'
 
-import { Toast } from './utils/components'
+import { Toast } from './utils'
 
 
 const loginStyle = {

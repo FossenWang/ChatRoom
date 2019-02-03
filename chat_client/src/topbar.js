@@ -10,7 +10,7 @@ function Topbar(props) {
       <AppBar position="fixed" color="default">
         <Toolbar>{props.children}</Toolbar>
       </AppBar>
-      <div style={{height: 56}} ></div>
+      <div style={{height: 64}} ></div>
     </Fragment>
   )
 }
