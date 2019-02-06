@@ -7,10 +7,10 @@ import Toolbar from '@material-ui/core/Toolbar'
 function Topbar(props) {
   return (
     <Fragment>
-      <AppBar position="fixed" color="default">
+      <AppBar position="fixed" style={{background: '#417690'}}>
         <Toolbar>{props.children}</Toolbar>
       </AppBar>
-      <div style={{height: 64}} ></div>
+      <div style={{height: props.height}} ></div>
     </Fragment>
   )
 }

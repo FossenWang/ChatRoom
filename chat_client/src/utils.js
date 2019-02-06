@@ -1,9 +1,10 @@
-import React, { Component } from 'react'
+import React, { Component, Fragment } from 'react'
 
 import { withStyles } from '@material-ui/core/styles'
 import Grid from '@material-ui/core/Grid'
 import Snackbar from '@material-ui/core/Snackbar'
 import Avatar from '@material-ui/core/Avatar'
+import Button from '@material-ui/core/Button'
 
 
 const noMatchStyle = {
@@ -55,11 +56,62 @@ class Toast extends Component {
 }
 
 
-const UserAvatar = (props) => {
-  return <Avatar
-    src={props.src ? props.src : '/default_avatar.png'}
-    style={{height: 36, width: 36}} />
+const userAvatarStyle = {
+  img: {
+    height: 36, width: 36
+  }
 }
 
+let UserAvatar = (props) => {
+  let { className, classes, src } = props
+  if (className) {
+    className = classes.img + ' ' + className
+  } else {
+    className = classes.img
+  }
+  return <Avatar
+    src={src ? src : '/default_avatar.png'}
+    className={className}  />
+}
+UserAvatar = withStyles(userAvatarStyle)(UserAvatar)
 
-export { NoMatch, Toast, UserAvatar }
+
+const userBarStyle = {
+  username: {
+    padding: '6px 8px',
+  },
+  button: {
+    minWidth: 'unset',
+    color: 'white',
+  },
+  avatar: {
+    marginRight: 8,
+  },
+}
+
+let UserBar = (props) => {
+  let { user, classes } = props
+  let rootProps = Object.assign({}, props)
+  delete rootProps.user
+  return (
+    <Grid container alignItems='center' {...rootProps}>
+      <UserAvatar src={user.avatar} className={classes.avatar} />
+      {user.id ?
+        <Fragment>
+          <div className={classes.username}>
+            {user.username}
+          </div>
+          <Button className={classes.button} onClick={props.logout}>
+            注销
+          </Button>
+        </Fragment> :
+        <Button className={classes.button} onClick={props.login}>
+          登录
+        </Button> }
+    </Grid>
+  )
+}
+UserBar = withStyles(userBarStyle)(UserBar)
+
+
+export { NoMatch, Toast, UserAvatar, UserBar }

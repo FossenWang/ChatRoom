@@ -6,22 +6,14 @@ import { withStyles } from '@material-ui/core/styles'
 import List from '@material-ui/core/List'
 import ListItem from '@material-ui/core/ListItem'
 import ListItemText from '@material-ui/core/ListItemText'
-import Button from '@material-ui/core/Button'
-import Grid from '@material-ui/core/Grid'
 
 import Topbar from './topbar'
-import { UserAvatar } from './utils'
+import { UserBar } from './utils'
 
 
 const roomListStyle = {
   item: {
     borderBottom: "1px solid #f4f5f7",
-  },
-  username: {
-    padding: '6px 8px',
-  },
-  button: {
-    minWidth: 'unset',
   },
 }
 
@@ -70,16 +62,8 @@ class RoomList extends Component {
     })
     return (
       <Fragment>
-        <Topbar>
-          <Grid container alignItems='center'>
-            <UserAvatar src={user.avatar} />
-            {user.id ?
-              <Fragment>
-                <div className={classes.username}>{user.username}</div>
-                <Button className={classes.button} onClick={this.logout}>注销</Button>
-              </Fragment> :
-              <Button onClick={this.login}>登录</Button> }
-          </Grid>
+        <Topbar height={56}>
+          <UserBar user={user} login={this.login} logout={this.logout} />
         </Topbar>
         <List>
           {room_list}

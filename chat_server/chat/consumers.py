@@ -1,4 +1,5 @@
 import re
+from datetime import datetime
 
 from django.core.exceptions import ObjectDoesNotExist
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
@@ -187,6 +188,16 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
         except ObjectDoesNotExist:
             pass
 
+    async def receive(self, text_data=None, bytes_data=None):
+        try:
+            await super().receive(text_data, bytes_data)
+        except Exception as e:
+            # Wrong message will only be send to sender,
+            # and won't be send to others
+            await self.send_json({
+                'msg_type': self.msg_types.ERROR,
+                'error': str(e)})
+
     # Receive message from WebSocket
     async def receive_json(self, data):
         message = data.get('message')
@@ -197,17 +208,8 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
         await room_manager.room_send(self.room_id, {
             'type': 'chat_message',
             'message': message,
+            'time': str(datetime.now()),
             'user': self.user})
-
-    async def receive(self, text_data=None, bytes_data=None):
-        try:
-            await super().receive(text_data, bytes_data)
-        except Exception as e:
-            # Wrong message will only be send to sender,
-            # and won't be send to others
-            await self.send_json({
-                'msg_type': self.msg_types.ERROR,
-                'error': str(e)})
 
     def validate_message(self, message):
         assert message, 'Message is empty'
@@ -221,6 +223,7 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
         await self.send_json({
             'msg_type': self.msg_types.MESSAGE,
             'message': event['message'],
+            'time': event['time'],
             'user': event['user']})
 
     async def send_user_room_info(self):

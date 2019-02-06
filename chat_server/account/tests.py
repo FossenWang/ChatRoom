@@ -25,7 +25,7 @@ class AccountTestCase(TestCase):
         self.assertTrue(rsp.json()['login'])
 
         rsp = c.get('/api/account/user/current/')
-        self.assertDictEqual(rsp.json(), {'id': 2, 'username': 'Fossen', 'avatar': None})
+        self.assertEqual(set(rsp.json()), {'id', 'username', 'avatar'})
 
         # fail login
         rsp = c.get('/api/csrf/')

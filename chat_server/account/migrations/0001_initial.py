@@ -9,7 +9,10 @@ import django.utils.timezone
 def initial_data(apps, schema_editor):
     from account.models import User
     User.objects.create_superuser('admin', None, 'admin123')
-    for name in ('Fossen', 'Jack', 'Tom', 'Smith', 'Bruce', 'David'):
+    fossen = User.objects.create_user('Fossen', None, '123456')
+    fossen.avatar = 'https://avatars2.githubusercontent.com/u/31503932?v=4'
+    fossen.save()
+    for name in ('Jack', 'Tom', 'Smith', 'Bruce', 'David'):
         User.objects.create_user(name, None, '123456')
 
 

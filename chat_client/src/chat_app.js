@@ -16,6 +16,7 @@ const appStyle = {
       fontSize: 16,
     },
     body: {
+      background: '#f8f8f8',
       margin: 0,
       fontFamily: '"Roboto", Helvetica, "Lucida Sans", "Microsoft YaHei", Georgia, Arial, Sans-serif',
     },

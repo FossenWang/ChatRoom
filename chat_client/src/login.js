@@ -7,11 +7,6 @@ import { Toast } from './utils'
 
 
 const loginStyle = {
-  '@global': {
-    body: {
-      background: '#f8f8f8',
-    },
-  },
   container: {
     background: '#fff',
     margin: '100px auto',
