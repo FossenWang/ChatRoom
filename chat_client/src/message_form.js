@@ -2,7 +2,7 @@ import React, { Component, Fragment, createRef } from 'react'
 
 import Grid from '@material-ui/core/Grid'
 import Button from '@material-ui/core/Button'
-import { withStyles } from '@material-ui/core/styles'
+import withStyles from '@material-ui/core/styles/withStyles'
 
 
 const formStyle = {
@@ -13,6 +13,10 @@ const formStyle = {
     width: 'calc(100% - 16px)',
     position: 'fixed',
     bottom: 0,
+    '@media (min-width: 720px)': {
+      maxWidth: 704,
+      margin: '0px auto',
+    },
   },
   text: {
     padding: '4px 8px',

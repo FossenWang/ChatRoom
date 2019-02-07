@@ -1,10 +1,18 @@
 import React, { Component, Fragment } from 'react'
 
-import { withStyles } from '@material-ui/core/styles'
+import withStyles from '@material-ui/core/styles/withStyles'
 import Grid from '@material-ui/core/Grid'
 import Snackbar from '@material-ui/core/Snackbar'
 import Avatar from '@material-ui/core/Avatar'
 import Button from '@material-ui/core/Button'
+
+
+let API_HOST
+if (process.env.NODE_ENV === 'development') {
+  API_HOST = '127.0.0.1:8000'
+} else {
+  API_HOST = '127.0.0.1:8000'
+}
 
 
 const noMatchStyle = {
@@ -79,6 +87,7 @@ UserAvatar = withStyles(userAvatarStyle)(UserAvatar)
 const userBarStyle = {
   username: {
     padding: '6px 8px',
+    cursor: 'default',
   },
   button: {
     minWidth: 'unset',
@@ -114,4 +123,4 @@ let UserBar = (props) => {
 UserBar = withStyles(userBarStyle)(UserBar)
 
 
-export { NoMatch, Toast, UserAvatar, UserBar }
+export { API_HOST, NoMatch, Toast, UserAvatar, UserBar }

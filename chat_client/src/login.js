@@ -1,9 +1,9 @@
 import React, { Component, createRef } from 'react'
 
-import { withStyles } from '@material-ui/core/styles'
+import withStyles from '@material-ui/core/styles/withStyles'
 import Grid from '@material-ui/core/Grid'
 
-import { Toast } from './utils'
+import { Toast, API_HOST } from './utils'
 
 
 const loginStyle = {
@@ -66,14 +66,14 @@ class LoginPage extends Component {
     let login = false
     try {
       let rsp = await fetch(
-        'http://127.0.0.1:8000/api/csrf/',
+        `http://${API_HOST}/api/csrf/`,
         { credentials: 'include' }
       )
       let { csrftoken } = await rsp.json()
       let formData = new FormData()
       formData.append('username', username)
       formData.append('password', password)
-      let url = 'http://127.0.0.1:8000/api/account/login/'
+      let url = `http://${API_HOST}/api/account/login/`
       rsp = await fetch(url, {
         method: 'POST',
         credentials: 'include',
@@ -97,7 +97,6 @@ class LoginPage extends Component {
     }
   }
   render() {
-    console.log(this.props.location)
     let { classes } = this.props
     return (
       <div className={classes.container}>
@@ -115,6 +114,11 @@ class LoginPage extends Component {
           <Grid container justify='center'>
             <input className={classes.submit} type='submit' value='登录' />
           </Grid>
+          <div><br/>
+            可选用户名：<br/>
+            'Fossen', 'Jack', 'Tom', 'Smith', 'Bruce', 'David'<br/>
+            密码均为：123456<br/>
+          </div>
         </Grid>
         <Toast ref={this.toastRef}></Toast>
       </div>

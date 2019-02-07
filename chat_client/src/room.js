@@ -1,12 +1,27 @@
 import React, { Component, Fragment, createRef } from 'react'
 
 import List from '@material-ui/core/List'
+import withStyles from '@material-ui/core/styles/withStyles'
 
 import Topbar from './topbar'
 import ChatMessage from './message'
 import MessageForm from './message_form'
-import { Toast } from './utils'
+import { Toast, API_HOST } from './utils'
 
+
+const roomStyle = {
+  list: {
+    minHeight: 'calc(100vh - 115px)',
+    background: 'white',
+  },
+  fullWidth: { width: '100%' },
+  roomName: { textAlign: 'center' },
+  onlineNumber: {
+    textAlign: 'center',
+    fontSize: 12,
+    color: '#f5f5f5'
+  },
+}
 
 class Room extends Component {
   state = {
@@ -22,7 +37,7 @@ class Room extends Component {
   }
   connectRoom = async () => {
     let url_room_id = this.props.match.params.id
-    let chatSocket = new WebSocket(`ws://127.0.0.1:8000/ws/chat/room/${url_room_id}/`)
+    let chatSocket = new WebSocket(`ws://${API_HOST}/ws/chat/room/${url_room_id}/`)
     chatSocket.onclose = this.socketClose
     chatSocket.onmessage = this.socketMessage
     chatSocket.onopen = () => {
@@ -117,12 +132,13 @@ class Room extends Component {
     OTHER_LOGIN: 3003,
   }
   getRoomTitle(room) {
+    let { classes } = this.props
     return (
-      <div style={{width: '100%'}}>
-        <div style={{textAlign: 'center'}}>
+      <div className={classes.fullWidth}>
+        <div className={classes.roomName}>
           {room.name}
         </div>
-        <div style={{textAlign: 'center', fontSize: 12, color: '#f5f5f5'}}>
+        <div className={classes.onlineNumber}>
           {`${room.onlineNumber}人在线${
           room.onlineNumber === room.maxNumber ? '(已满)' : ''}`}
         </div>
@@ -142,13 +158,15 @@ class Room extends Component {
         <Topbar height={56}>
           {title}
         </Topbar>
-        <List>{messageList}</List>
+        <List className={this.props.classes.list}>
+          {messageList}
+        </List>
         {webSocketOpen ? <MessageForm sendMessage={this.sendMessage} /> : null}
-        <Toast ref={this.toastRef}></Toast>
+        <Toast ref={this.toastRef} />
       </Fragment>
     )
   }
 }
 
 
-export default Room
+export default withStyles(roomStyle)(Room)

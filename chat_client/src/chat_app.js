@@ -2,7 +2,7 @@ import React, { Component, Fragment } from 'react'
 
 import { BrowserRouter as Router, Switch, Route } from "react-router-dom"
 
-import { withStyles } from '@material-ui/core/styles'
+import withStyles from '@material-ui/core/styles/withStyles'
 
 import RoomList from './room_list'
 import Room from './room'
@@ -19,6 +19,10 @@ const appStyle = {
       background: '#f8f8f8',
       margin: 0,
       fontFamily: '"Roboto", Helvetica, "Lucida Sans", "Microsoft YaHei", Georgia, Arial, Sans-serif',
+      '@media (min-width: 720px)': {
+        maxWidth: 720,
+        margin: '0px auto',
+      },
     },
   },
 }
@@ -40,7 +44,5 @@ class ChatApp extends Component {
   }
 }
 
-ChatApp = withStyles(appStyle)(ChatApp)
 
-
-export { ChatApp }
+export default withStyles(appStyle)(ChatApp)

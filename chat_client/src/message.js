@@ -2,7 +2,7 @@ import React, { Component } from 'react'
 
 import ListItem from '@material-ui/core/ListItem'
 import Grid from '@material-ui/core/Grid'
-import { withStyles } from '@material-ui/core/styles'
+import withStyles from '@material-ui/core/styles/withStyles'
 
 import { UserAvatar } from './utils'
 
@@ -20,7 +20,7 @@ const messageStyle = {
     margin: '0 12px',
     padding: '8px 10px',
     borderRadius: 5,
-    background: 'white',
+    background: '#f6f8fa',
     wordBreak: 'break-word',
     whiteSpace: 'pre-wrap',
     width: 'fit-content',
