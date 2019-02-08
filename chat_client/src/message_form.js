@@ -93,7 +93,7 @@ class MessageForm extends Component {
             <textarea className={classes.text} onChange={this.handleChange}
               required name='message' maxLength={500} ref={this.textareaRef} rows={1}
               style={{height: textareaHeight}} />
-            <Button onClick={this.submitMessage} {...buttonProps}>确认</Button>
+            <Button onClick={this.submitMessage} {...buttonProps}>发送</Button>
           </Grid>
         </form>
       </Fragment>

@@ -12,7 +12,7 @@ import { Toast, API_HOST } from './utils'
 const roomStyle = {
   list: {
     minHeight: 'calc(100vh - 115px)',
-    background: 'white',
+    background: '#efefef',
   },
   fullWidth: { width: '100%' },
   roomName: { textAlign: 'center' },

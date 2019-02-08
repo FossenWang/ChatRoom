@@ -25,7 +25,10 @@ SECRET_KEY = 'e+glanoj@&k3jgj_7^nkisj=s73s@2pzs#+146w+=*+lyw2@en'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    'localhost',
+    'chatdemo.fossen.cn',
+]
 
 
 # Application definition

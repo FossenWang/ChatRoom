@@ -11,7 +11,7 @@ let API_HOST
 if (process.env.NODE_ENV === 'development') {
   API_HOST = '127.0.0.1:8000'
 } else {
-  API_HOST = '127.0.0.1:8000'
+  API_HOST = 'chatdemo.fossen.cn'
 }
 
 

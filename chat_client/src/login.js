@@ -10,10 +10,13 @@ const loginStyle = {
   container: {
     background: '#fff',
     margin: '100px auto',
-    maxWidth: 360,
+    maxWidth: '90%',
     border: '1px solid #eaeaea',
     borderRadius: 4,
     overflow: 'hidden',
+    '@media (min-width: 720px)': {
+      maxWidth: 360,
+    },
   },
   header: {
     padding: 10,
