@@ -53,7 +53,11 @@ const messageStyle = {
 class ChatMessage extends Component {
   getTimeString() {
     let time = new Date(this.props.time)
-    time = `${time.getHours()}:${time.getMinutes()}`
+    let hour = time.getHours()
+    let min = time.getMinutes()
+    if (!hour || !min) { return }
+    if (min < 10) { min = `0${min}` }
+    time = `${hour}:${min}`
     return time
   }
   rightLayout() {

@@ -41,37 +41,40 @@ class ChatTestCase(TestCase):
 
         # test join & leave room msg
         session_cookie = await self.login_user(users[4])
-        new_communicator = WebsocketCommunicator(
+        communicator_1 = WebsocketCommunicator(
             application, "ws/chat/room/1/",
             headers=[(b'cookie', bytes(f'sessionid={session_cookie}', 'utf8'))])
-        connected, _ = await new_communicator.connect()
+        connected, _ = await communicator_1.connect()
         assert connected
-        receive_data = await new_communicator.receive_json_from()
+        receive_data = await communicator_1.receive_json_from()
         self.assertEqual(receive_data['msg_type'], ChatConsumer.msg_types.USER_ROOM_INFO)
-        new_communicator.user = receive_data['user']
+        communicator_1.user = receive_data['user']
         # receive join msg
         for communicator in communicator_list:
             receive_data = await communicator.receive_json_from()
             self.assertEqual(receive_data['msg_type'], ChatConsumer.msg_types.JOIN_ROOM)
-            self.assertDictEqual(receive_data['user'], new_communicator.user)
+            self.assertDictEqual(receive_data['user'], communicator_1.user)
             self.assertEqual(receive_data['onlineNumber'], 4)
 
         # user login on other websocket
         session_cookie = await self.login_user(users[4])
-        other_communicator = WebsocketCommunicator(
+        communicator_2 = WebsocketCommunicator(
             application, "ws/chat/room/1/",
             headers=[(b'cookie', bytes(f'sessionid={session_cookie}', 'utf8'))])
-        connected, _ = await other_communicator.connect()
+        connected, _ = await communicator_2.connect()
         assert connected
-        receive_data = await other_communicator.receive_json_from()
+        receive_data = await communicator_2.receive_json_from()
         self.assertEqual(receive_data['msg_type'], ChatConsumer.msg_types.USER_ROOM_INFO)
+        # the old channel was closed
+        receive_data = await communicator_1.receive_output()
+        assert receive_data['code'] == ChatConsumer.close_codes.OTHER_LOGIN
 
         # receive leave msg
-        await other_communicator.disconnect()
+        await communicator_2.disconnect()
         for communicator in communicator_list:
             receive_data = await communicator.receive_json_from()
             self.assertEqual(receive_data['msg_type'], ChatConsumer.msg_types.LEAVE_ROOM)
-            self.assertDictEqual(receive_data['user'], new_communicator.user)
+            self.assertDictEqual(receive_data['user'], communicator_1.user)
             self.assertEqual(receive_data['onlineNumber'], 3)
 
         # login required

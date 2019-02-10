@@ -1,5 +1,5 @@
 import re
-from datetime import datetime
+from django.utils import timezone
 
 from django.core.exceptions import ObjectDoesNotExist
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
@@ -64,7 +64,7 @@ class RoomManager:
             )
             await self.channel_layer.send(
                 room['user_channels'][user_id],
-                {'type': 'websocket.disconnect', 'code': 3003}
+                {'type': 'other_login', 'channel_name': channel_name}
             )
 
         room['online_users'][user_id] = user
@@ -208,7 +208,7 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
         await room_manager.room_send(self.room_id, {
             'type': 'chat_message',
             'message': message,
-            'time': str(datetime.now()),
+            'time': timezone.now().timestamp(),
             'user': self.user})
 
     def validate_message(self, message):
@@ -253,3 +253,7 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
             'msg_type': self.msg_types.LEAVE_ROOM,
             'user': event['user'],
             'onlineNumber': event['onlineNumber']})
+
+    async def other_login(self, event):
+        await self.close(self.close_codes.OTHER_LOGIN)
+        raise StopConsumer()

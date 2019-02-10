@@ -48,6 +48,19 @@ const formStyle = {
 class MessageForm extends Component {
   state = { value: '', textareaHeight: 18, formHeight: 42 }
   textareaRef = createRef()
+  holdingCtrl = false
+  handlekeyDown = (event) => {
+    if (event.keyCode === 17) {
+      this.holdingCtrl = true
+    } else if (event.keyCode === 13 && this.holdingCtrl) {
+      this.submitMessage()
+    }
+  }
+  handlekeyUp = (event) => {
+    if (event.keyCode === 17) {
+      this.holdingCtrl = false
+    }
+  }
   handleChange = (event) => {
     let textarea = event.target
     textarea.style.height = ''
@@ -91,9 +104,11 @@ class MessageForm extends Component {
         <form className={classes.form}>
           <Grid container alignItems={'center'}>
             <textarea className={classes.text} onChange={this.handleChange}
+              onKeyDown={this.handlekeyDown} onKeyUp={this.handlekeyUp}
               required name='message' maxLength={500} ref={this.textareaRef} rows={1}
               style={{height: textareaHeight}} />
-            <Button onClick={this.submitMessage} {...buttonProps}>发送</Button>
+            <Button title='Ctrl + Enter 发送'
+              onClick={this.submitMessage} {...buttonProps}>发送</Button>
           </Grid>
         </form>
       </Fragment>

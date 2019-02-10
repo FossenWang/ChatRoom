@@ -26,7 +26,7 @@ SECRET_KEY = 'e+glanoj@&k3jgj_7^nkisj=s73s@2pzs#+146w+=*+lyw2@en'
 DEBUG = True
 
 ALLOWED_HOSTS = [
-    'localhost',
+    '127.0.0.1',
     'chatdemo.fossen.cn',
 ]
 
@@ -111,9 +111,9 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/2.1/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'zh-hans'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Asia/Shanghai'
 
 USE_I18N = True
 

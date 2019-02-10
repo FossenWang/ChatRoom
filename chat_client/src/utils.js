@@ -100,10 +100,8 @@ const userBarStyle = {
 
 let UserBar = (props) => {
   let { user, classes } = props
-  let rootProps = Object.assign({}, props)
-  delete rootProps.user
   return (
-    <Grid container alignItems='center' {...rootProps}>
+    <Grid container alignItems='center'>
       <UserAvatar src={user.avatar} className={classes.avatar} />
       {user.id ?
         <Fragment>
