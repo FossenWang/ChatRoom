@@ -52,7 +52,6 @@ class Room extends Component {
     this.disconnectRoom = () => {
       chatSocket.close()
     }
-    window.chatSocket = chatSocket
   }
   disconnectRoom() { }
   sendMessage() { }
